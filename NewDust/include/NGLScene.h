@@ -221,6 +221,13 @@ private:
 
     void particleSystemInit();
 
+    void InitDrawingShaders();
+
+
+    void updateParticles();
+    void drawParticles();
+
+
     GLuint m_particleBuffer[2];
     GLuint m_transformFeedback[2];
 

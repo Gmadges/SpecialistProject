@@ -17,14 +17,9 @@ uniform sampler2D tex1;
 
 void main()
 {
-
-mat4 ModelView = mat4(texelFetch(TBO, gl_InstanceID*4+0),
-											texelFetch(TBO, gl_InstanceID*4+1),
-											texelFetch(TBO, gl_InstanceID*4+2),
-											texelFetch(TBO, gl_InstanceID*4+3));
-	mat4 ModelViewProjection = Projection * ModelView;
-	// calculate the vertex position
-	gl_Position = ModelViewProjection*vec4(inVert, 1.0);
-	// pass the UV values to the frag shader
-	vertUV=inUV;
+        mat4 ModelViewProjection = Projection * inModelView;
+        // calculate the vertex position
+        gl_Position = ModelViewProjection*vec4(inVert, 1.0);
+        // pass the UV values to the frag shader
+        vertUV=inUV;
 }

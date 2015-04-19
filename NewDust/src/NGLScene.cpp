@@ -52,7 +52,7 @@ NGLScene::NGLScene(QWindow *_parent) : OpenGLWindow(_parent)
   // mouse rotation values set to 0
   m_spinXFace=0;
   m_spinYFace=0;
-  setTitle("Divisor Instancing");
+  setTitle("Dust");
   m_fpsTimer =startTimer(0);
   m_fps=0;
   m_frames=0;
@@ -81,24 +81,7 @@ void NGLScene::loadTexture()
   bool loaded = image.load("textures/Sprite.png", "PNG");
   if(loaded == true)
   {
-/*
-    unsigned char *data = new unsigned char[ width*height*4];
-    unsigned int index=0;
 
-    QRgb colour;
-    for( int y=0; y<height; ++y)
-    {
-      for( int x=0; x<width; ++x)
-      {
-        colour=image->pixel(x,y);
-
-        data[index++]=qRed(colour);
-        data[index++]=qGreen(colour);
-        data[index++]=qBlue(colour);
-        data[index++]=qAlpha(colour);
-      }
-    }
-*/
   QImage GLimage;
   GLimage = QGLWidget::convertToGLFormat(image);
 
@@ -135,10 +118,35 @@ void NGLScene::resizeEvent(QResizeEvent *_event )
   }
 }
 
+void NGLScene::InitDrawingShaders()
+{
+    ngl::ShaderLib *shader=ngl::ShaderLib::instance();
+
+    shader->createShaderProgram("TextureShader");
+
+    shader->attachShader("TextureVertex",ngl::VERTEX);
+    shader->attachShader("TextureFragment",ngl::FRAGMENT);
+    shader->loadShaderSource("TextureVertex","shaders/drawVertex.glsl");
+    shader->loadShaderSource("TextureFragment","shaders/drawFragment.glsl");
+
+    shader->compileShader("TextureVertex");
+    shader->compileShader("TextureFragment");
+    shader->attachShaderToProgram("TextureShader","TextureVertex");
+    shader->attachShaderToProgram("TextureShader","TextureFragment");
+
+    // link
+    shader->linkProgramObject("TextureShader");
+    shader->use("TextureShader");
+    // register the uniforms for later uses
+    shader->autoRegisterUniforms("TextureShader");
+}
+
 void NGLScene::particleSystemInit()
 {
     Particle Particles[10000];
     
+    //create particle data.
+
     Particles[0].Type = 1;
     Particles[0].Pos = ngl::Vec3(0,0,0);
     Particles[0].Vel = ngl::Vec3(0.0f, 0.0001f, 0.0f);
@@ -154,6 +162,46 @@ void NGLScene::particleSystemInit()
         glBufferData(GL_ARRAY_BUFFER, sizeof(Particles), Particles, GL_DYNAMIC_DRAW);
         glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_particleBuffer[i]);
     }
+
+
+    // here we see what the max size of a uniform block can be, this is going
+    // to be the GL_MAX_UNIFORM_BLOCK_SIZE / the size of the data we want to pass
+    // into the uniform block which in this case is just a series of ngl::Mat4
+    // in the case of the mac it's 1024
+    GLint maxUniformBlockSize;
+    glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize);
+    m_instancesPerBlock = maxUniformBlockSize / sizeof(ngl::Mat4);
+    std::cout<<"Number of instances per block is "<<m_instancesPerBlock<<"\n";
+
+    // now to load the shader and set the values
+    // grab an instance of shader manager
+    ngl::ShaderLib *shader=ngl::ShaderLib::instance();
+    // This is for our transform shader and it will load a series of matrics into a uniform
+    // block ready for drawing later
+    shader->createShaderProgram("TransformFeedback");
+    shader->attachShader("TransVertex",ngl::VERTEX);
+    shader->loadShaderSource("TransVertex","shaders/updateFeedback.glsl");
+    shader->compileShader("TransVertex");
+    shader->attachShaderToProgram("TransformFeedback","TransVertex");
+    // bind our attribute
+    shader->bindAttribute("TransformFeedback",0,"inPos");
+    // now we want to get the TransformFeedback variables and set them
+    // first get the shader ID
+    GLuint id=shader->getProgramID("TransformFeedback");
+    // create a list of the varyings we want to attach to (this is the out in our shader)
+    const char *varyings[1] = { "ModelView" };
+    // The names of the vertex or geometry shader outputs to be recorded in
+    // transform feedback mode are specified using glTransformFeedbackVaryings
+    // in this case we are storing 1 (ModelView) and the attribs are
+    glTransformFeedbackVaryings(id, 1, varyings, GL_INTERLEAVED_ATTRIBS);
+    // now link the shader
+    shader->linkProgramObject("TransformFeedback");
+    shader->use("TransformFeedback");
+    // register the uniforms
+    shader->autoRegisterUniforms("TransformFeedback");
+
+    // create our cube
+    shader->setShaderParam1i("tex1",0);
 
 }
 
@@ -183,62 +231,8 @@ void NGLScene::initialize()
   // The final two are near and far clipping planes of 0.5 and 10
   m_cam->setShape(45,(float)720.0/576.0,0.5,150);
 
-  // here we see what the max size of a uniform block can be, this is going
-  // to be the GL_MAX_UNIFORM_BLOCK_SIZE / the size of the data we want to pass
-  // into the uniform block which in this case is just a series of ngl::Mat4
-  // in the case of the mac it's 1024
-  GLint maxUniformBlockSize;
-  glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize);
-  m_instancesPerBlock = maxUniformBlockSize / sizeof(ngl::Mat4);
-  std::cout<<"Number of instances per block is "<<m_instancesPerBlock<<"\n";
-
-  // now to load the shader and set the values
-  // grab an instance of shader manager
-  ngl::ShaderLib *shader=ngl::ShaderLib::instance();
-  // This is for our transform shader and it will load a series of matrics into a uniform
-  // block ready for drawing later
-  shader->createShaderProgram("TransformFeedback");
-  shader->attachShader("TransVertex",ngl::VERTEX);
-  shader->loadShaderSource("TransVertex","shaders/updateFeedback.glsl");
-  shader->compileShader("TransVertex");
-  shader->attachShaderToProgram("TransformFeedback","TransVertex");
-  // bind our attribute
-  shader->bindAttribute("TransformFeedback",0,"inPos");
-  // now we want to get the TransformFeedback variables and set them
-  // first get the shader ID
-  GLuint id=shader->getProgramID("TransformFeedback");
-  // create a list of the varyings we want to attach to (this is the out in our shader)
-  const char *varyings[1] = { "ModelView" };
-  // The names of the vertex or geometry shader outputs to be recorded in
-  // transform feedback mode are specified using glTransformFeedbackVaryings
-  // in this case we are storing 1 (ModelView) and the attribs are
-  glTransformFeedbackVaryings(id, 1, varyings, GL_INTERLEAVED_ATTRIBS);
-  // now link the shader
-  shader->linkProgramObject("TransformFeedback");
-  shader->use("TransformFeedback");
-  // register the uniforms
-  shader->autoRegisterUniforms("TransformFeedback");
-  // now we are going to create our texture shader for drawing the cube
-  shader->createShaderProgram("TextureShader");
-
-  shader->attachShader("TextureVertex",ngl::VERTEX);
-  shader->attachShader("TextureFragment",ngl::FRAGMENT);
-  shader->loadShaderSource("TextureVertex","shaders/drawVertex.glsl");
-  shader->loadShaderSource("TextureFragment","shaders/drawFragment.glsl");
-
-  shader->compileShader("TextureVertex");
-  shader->compileShader("TextureFragment");
-  shader->attachShaderToProgram("TextureShader","TextureVertex");
-  shader->attachShaderToProgram("TextureShader","TextureFragment");
-
-  // link
-  shader->linkProgramObject("TextureShader");
-  shader->use("TextureShader");
-  // register the uniforms for later uses
-  shader->autoRegisterUniforms("TextureShader");
-  // create our cube
-  shader->setShaderParam1i("tex1",0);
   loadTexture();
+
   glEnable(GL_DEPTH_TEST); // for removal of hidden surfaces
 
   m_text = new ngl::Text(QFont("Arial",14));
@@ -254,7 +248,7 @@ void NGLScene::loadMatricesToShader()
 
   ngl::Mat4 MV;
   ngl::Mat4 MVP;
-  ngl::Mat3 normalMatrix;
+  ngl::Mat3 normalMatrix;    ngl::ShaderLib *shader=ngl::ShaderLib::instance();
   ngl::Mat4 M;
   M=m_transform.getMatrix()*m_mouseGlobalTX;
   MV=  M*m_cam->getViewMatrix();
@@ -267,10 +261,82 @@ void NGLScene::loadMatricesToShader()
   shader->setShaderParamFromMat4("M",M);
 }
 
+void NGLScene::updateParticles()
+{
+    ngl::ShaderLib *shader=ngl::ShaderLib::instance();
+
+
+    (*shader)["TransformFeedback"]->use();
+    // if the number of instances have changed re-bind the buffer to the correct size
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_matrixID);
+    glBufferData(GL_ARRAY_BUFFER, m_instances*sizeof(ngl::Mat4), NULL, GL_STATIC_DRAW);
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_matrixID);
+    glBindTexture(GL_TEXTURE_BUFFER,m_tboID);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, m_matrixID);
+
+
+
+    //----------------------------------------------------------------------------------------------------------------------
+    // SETUP DATA
+    //----------------------------------------------------------------------------------------------------------------------
+    glBindTexture(GL_TEXTURE_BUFFER, m_tboID);
+
+    // activate our vertex array for the points so we can fill in our matrix buffer
+    glBindVertexArray(m_dataID);
+    // set the view for the camera
+    shader->setRegisteredUniformFromMat4("View",m_cam->getViewMatrix());
+    // this sets some per-vertex data values for the Matrix shader
+    shader->setRegisteredUniform4f("data",0.3,0.6,0.5,1.2);
+    // pass in the mouse rotation
+    shader->setRegisteredUniformFromMat4("mouseRotation",m_mouseGlobalTX);
+    // this flag tells OpenGL to discard the data once it has passed the transform stage, this means
+    // that none of it wil be drawn (RASTERIZED) remember to turn this back on once we have done this
+    glEnable(GL_RASTERIZER_DISCARD);
+    // redirect all draw output to the transform feedback buffer which is our buffer object matrix
+    glBeginTransformFeedback(GL_POINTS);
+    // now draw our array of points (now is a good time to check out the feedback.vs shader to see what
+    // happens here)
+
+    glDrawArrays(GL_POINTS, 0, m_instances);
+    // now signal that we have done with the feedback buffer
+    glEndTransformFeedback();
+    // and re-enable rasterisation
+    glDisable(GL_RASTERIZER_DISCARD);
+}
+
+void NGLScene::drawParticles()
+{
+    //----------------------------------------------------------------------------------------
+    // DRAW INSTANCES
+    //----------------------------------------------------------------------------------------------------------------------
+    // clear the screen and depth buffer
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // now we are going to switch to our texture shader and render our boxes
+    (*shader)["TextureShader"]->use();
+    // set the projection matrix for our camera
+    shader->setRegisteredUniformFromMat4("Projection",m_cam->getProjectionMatrix());
+    // activate our vertex array object for the box
+    glBindVertexArray(m_vaoID);
+
+    // activate the texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_BUFFER, m_tboID);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D,m_textureName);
+    glPolygonMode(GL_FRONT_AND_BACK,m_polyMode);
+
+    //glDrawArrays(GL_TRIANGLES, 0, 6, m_instances);
+    glDrawArrays(GL_POINTS,0,m_instances);
+}
+
+
 void NGLScene::render()
 {
-   glEnable(GL_BLEND);
-   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
    // Rotation based on the mouse position for our global
    // transform
@@ -285,69 +351,12 @@ void NGLScene::render()
    m_mouseGlobalTX.m_m[3][0] = m_modelPos.m_x;
    m_mouseGlobalTX.m_m[3][1] = m_modelPos.m_y;
    m_mouseGlobalTX.m_m[3][2] = m_modelPos.m_z;
-   ngl::ShaderLib *shader=ngl::ShaderLib::instance();
 
 
-   (*shader)["TransformFeedback"]->use();
-   // if the number of instances have changed re-bind the buffer to the correct size
+   updateParticles();
 
-   glBindBuffer(GL_ARRAY_BUFFER, m_matrixID);
-   glBufferData(GL_ARRAY_BUFFER, m_instances*sizeof(ngl::Mat4), NULL, GL_STATIC_DRAW);
-   glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_matrixID);
-   glBindTexture(GL_TEXTURE_BUFFER,m_tboID);
-   glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, m_matrixID);
+   drawParticles();
 
-
-
-   //----------------------------------------------------------------------------------------------------------------------
-   // SETUP DATA
-   //----------------------------------------------------------------------------------------------------------------------
-   glBindTexture(GL_TEXTURE_BUFFER, m_tboID);
-
-   // activate our vertex array for the points so we can fill in our matrix buffer
-   glBindVertexArray(m_dataID);
-   // set the view for the camera
-   shader->setRegisteredUniformFromMat4("View",m_cam->getViewMatrix());
-   // this sets some per-vertex data values for the Matrix shader
-   shader->setRegisteredUniform4f("data",0.3,0.6,0.5,1.2);
-   // pass in the mouse rotation
-   shader->setRegisteredUniformFromMat4("mouseRotation",m_mouseGlobalTX);
-   // this flag tells OpenGL to discard the data once it has passed the transform stage, this means
-   // that none of it wil be drawn (RASTERIZED) remember to turn this back on once we have done this
-   glEnable(GL_RASTERIZER_DISCARD);
-   // redirect all draw output to the transform feedback buffer which is our buffer object matrix
-   glBeginTransformFeedback(GL_POINTS);
-   // now draw our array of points (now is a good time to check out the feedback.vs shader to see what
-   // happens here)
-
-   glDrawArrays(GL_POINTS, 0, m_instances);
-   // now signal that we have done with the feedback buffer
-   glEndTransformFeedback();
-   // and re-enable rasterisation
-   glDisable(GL_RASTERIZER_DISCARD);
-
-   //----------------------------------------------------------------------------------------
-   // DRAW INSTANCES
-   //----------------------------------------------------------------------------------------------------------------------
-   // clear the screen and depth buffer
-   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-   // now we are going to switch to our texture shader and render our boxes
-   (*shader)["TextureShader"]->use();
-   // set the projection matrix for our camera
-   shader->setRegisteredUniformFromMat4("Projection",m_cam->getProjectionMatrix());
-   // activate our vertex array object for the box
-   glBindVertexArray(m_vaoID);
-
-   // activate the texture
-   glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_BUFFER, m_tboID);
-   glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D,m_textureName);
-   glPolygonMode(GL_FRONT_AND_BACK,m_polyMode);
-
-   //glDrawArrays(GL_TRIANGLES, 0, 6, m_instances);
-   glDrawArrays(GL_POINTS,0,m_instances);
    std::cout<<"tex "<<m_textureName<<" buffer id "<<m_tboID<<"\n";
    ++m_frames;
    glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
