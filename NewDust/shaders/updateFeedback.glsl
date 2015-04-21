@@ -1,25 +1,25 @@
 #version 330
 
-layout (location = 0) in float Type;
-layout (location = 1) in vec3 Position;
-layout (location = 2) in vec3 Velocity;
-layout (location = 3) in float Age;
+layout (location = 0) in vec3 Position;
+layout (location = 1) in vec3 Velocity;
+layout (location = 2) in int Age;
 
-out float Type0;
 out vec3 Position0;
 out vec3 Velocity0;
 out float Age0;
 
-uniform float DeltaTimeMillis;
-uniform float Time;
+uniform int Time;
 
 void main()
 {
+
     if(Age <= 50000)
     {
         Position0 = Position + Velocity;
 
         Velocity0 = Velocity + vec3(0.0, -9.8, 0.0);
+
+        Age0 = Age + Time;
     }
     else
     {
@@ -27,17 +27,12 @@ void main()
 
         vec3 tmp;
 
-        tmp.x = noise1(Time + gl_VertexID) * 5.0;
-        tmp.y = 100.0;
-        tmp.z = noise1(Time + gl_VertexID) * 5.0;
+        tmp.x = 2;
+        tmp.y = 500.0;
+        tmp.z = 2;
 
         Velocity0 = tmp;
 
-        Age0 = 0.0f;
+        Age0 = 0;
     }
-
-    Type0 = Type;
-
-    Age0 += (DeltaTimeMillis/1000.0);
-
 }

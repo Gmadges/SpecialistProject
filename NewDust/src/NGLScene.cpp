@@ -9,27 +9,29 @@
 #include <ngl/VAOPrimitives.h>
 #include <ngl/ShaderLib.h>
 #include <ngl/Random.h>
-#include <ngl/Transformation.h>
+
+#include <glm/matrix.hpp>
+#include <glm/vec3.hpp>
+
 
 #include<QGLWidget>
 
+struct Particle
+{
+    ngl::Vec3 Pos;
+    ngl::Vec3 Vel;
+    float LifetimeMillis;
+};
 
-//----------------------------------------------------------------------------------------------------------------------
 /// @brief the increment for x/y translation with mouse movement
-//----------------------------------------------------------------------------------------------------------------------
 const static float INCREMENT=0.01;
-//----------------------------------------------------------------------------------------------------------------------
+
 /// @brief the increment for the wheel zoom
-//----------------------------------------------------------------------------------------------------------------------
 const static float ZOOM=5.0;
-//----------------------------------------------------------------------------------------------------------------------
-/// num instances
-//----------------------------------------------------------------------------------------------------------------------
-const static unsigned int maxinstances=1000000;
 
 
+const static unsigned int maxinstances=10000;
 
-//----------------------------------------------------------------------------------------------------------------------
 void NGLScene::incInstances()
 {
   m_instances+=10000;
@@ -37,7 +39,7 @@ void NGLScene::incInstances()
     m_instances=maxinstances;
   m_updateBuffer=true;
 }
-//----------------------------------------------------------------------------------------------------------------------
+
 void NGLScene::decInstances()
 {
   m_instances-=10000;
@@ -58,18 +60,19 @@ NGLScene::NGLScene(QWindow *_parent) : OpenGLWindow(_parent)
   m_fps=0;
   m_frames=0;
   m_timer.start();
+
   m_polyMode=GL_FILL;
   m_instances=1000;
   m_updateBuffer=true;
 
-}
 
+}
 
 NGLScene::~NGLScene()
 {
   ngl::NGLInit *Init = ngl::NGLInit::instance();
   std::cout<<"Shutting down NGL, removing VAO's and Shaders\n";
-  glDeleteVertexArrays(1,&m_dataID);
+
   glDeleteVertexArrays(1,&m_matrixID);
   glDeleteVertexArrays(1,&m_vaoID);
   Init->NGLQuit();
@@ -150,71 +153,60 @@ void NGLScene::InitDrawingShaders()
     // register the uniforms for later uses
     shader->autoRegisterUniforms("ParticleShader");
 }
-/*
+
 void NGLScene::particleSystemInit()
 {
-    Particle Particles[10000];
-    
+    Particle Particles[maxinstances];
+
+    ngl::Random *rng = ngl::Random::instance();
+
     //create particle data.
-
-    Particles[0].Type = 1;
-    Particles[0].Pos = ngl::Vec3(0,0,0);
-    Particles[0].Vel = ngl::Vec3(0.0f, 0.0001f, 0.0f);
-    Particles[0].LifetimeMillis = 0.0f;
-    
-    glGenTransformFeedbacks(2, m_transformFeedback); 
-    glGenBuffers(2, m_particleBuffer);
-    
-    for (unsigned int i = 0; i < 2 ; i++) 
+    for(unsigned int i = 0; i < maxinstances; i++)
     {
-        glBindTransformFeedback(GL_TRANSFORM_FEEDBACK, m_transformFeedback[i]);
-        glBindBuffer(GL_ARRAY_BUFFER, m_particleBuffer[i]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Particles), Particles, GL_DYNAMIC_DRAW);
-        glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_particleBuffer[i]);
+        Particles[i].Pos = ngl::Vec3(0,0,0);
+        Particles[i].Vel = ngl::Vec3(0.0f, 100.0f, 0.0f);
+        Particles[i].LifetimeMillis = 0.0f;
     }
+    
+    // Create VBO for input on even-numbered frames and output on odd-numbered frames:
+    glGenBuffers(1, &m_particleBufferA);
+    glBindBuffer(GL_ARRAY_BUFFER, m_particleBufferA);
+    glBufferData(GL_ARRAY_BUFFER, maxinstances*sizeof(Particle), Particles, GL_STREAM_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-
-    // here we see what the max size of a uniform block can be, this is going
-    // to be the GL_MAX_UNIFORM_BLOCK_SIZE / the size of the data we want to pass
-    // into the uniform block which in this case is just a series of ngl::Mat4
-    // in the case of the mac it's 1024
-    GLint maxUniformBlockSize;
-    glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUniformBlockSize);
-    m_instancesPerBlock = maxUniformBlockSize / sizeof(ngl::Mat4);
-    std::cout<<"Number of instances per block is "<<m_instancesPerBlock<<"\n";
+    // Create VBO for output on even-numbered frames and input on odd-numbered frames:
+    glGenBuffers(1, &m_particleBufferB);
+    glBindBuffer(GL_ARRAY_BUFFER, m_particleBufferB);
+    glBufferData(GL_ARRAY_BUFFER, maxinstances*sizeof(Particle), Particles, GL_STREAM_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     // now to load the shader and set the values
     // grab an instance of shader manager
     ngl::ShaderLib *shader=ngl::ShaderLib::instance();
-    // This is for our transform shader and it will load a series of matrics into a uniform
-    // block ready for drawing later
-    shader->createShaderProgram("TransformFeedback");
-    shader->attachShader("TransVertex",ngl::VERTEX);
-    shader->loadShaderSource("TransVertex","shaders/updateFeedback.glsl");
-    shader->compileShader("TransVertex");
-    shader->attachShaderToProgram("TransformFeedback","TransVertex");
-    // bind our attribute
-    shader->bindAttribute("TransformFeedback",0,"inPos");
-    // now we want to get the TransformFeedback variables and set them
-    // first get the shader ID
-    GLuint id=shader->getProgramID("TransformFeedback");
-    // create a list of the varyings we want to attach to (this is the out in our shader)
-    const char *varyings[1] = { "ModelView" };
-    // The names of the vertex or geometry shader outputs to be recorded in
-    // transform feedback mode are specified using glTransformFeedbackVaryings
-    // in this case we are storing 1 (ModelView) and the attribs are
-    glTransformFeedbackVaryings(id, 1, varyings, GL_INTERLEAVED_ATTRIBS);
+
+    //initialise feedback shader
+    shader->createShaderProgram("updateParticle");
+    shader->attachShader("updateFeedback",ngl::VERTEX);
+    shader->loadShaderSource("updateFeedback","shaders/updateFeedback.glsl");
+    shader->compileShader("updateFeedback");
+    shader->attachShaderToProgram("updateParticle","updateFeedback");
+
+    const GLchar* Varyings[3] = { "Position0",
+                                  "Velocity0",
+                                  "Age0"    };
+
+
+    GLuint id=shader->getProgramID("updateParticle");
+
+    glTransformFeedbackVaryings(id, 3, Varyings, GL_INTERLEAVED_ATTRIBS);
+
     // now link the shader
-    shader->linkProgramObject("TransformFeedback");
-    shader->use("TransformFeedback");
+    shader->linkProgramObject("updateParticle");
+    shader->use("updateParticle");
     // register the uniforms
-    shader->autoRegisterUniforms("TransformFeedback");
-
-    // create our cube
-    shader->setShaderParam1i("tex1",0);
-
+    shader->autoRegisterUniforms("updateParticle");
 }
-*/
+
 void NGLScene::initialize()
 {
   // we must call this first before any other GL commands to load and link the
@@ -243,37 +235,9 @@ void NGLScene::initialize()
 
   InitDrawingShaders();
 
+  particleSystemInit();
+
   loadTexture();
-
-  GLuint dataArray;
-    // first create a Vertex array for out data points, we will create max instances
-    // size of data but only use a certain amount of them when we draw
-    glGenVertexArrays(1,&m_dataID);
-    // bind the array
-    glBindVertexArray(m_dataID);
-    // generate a buffer ready to store our data
-    glGenBuffers(1, &dataArray );
-    glBindBuffer(GL_ARRAY_BUFFER, dataArray);
-    // allocate space for the vec3 for each point
-    ngl::Vec3 *data = new ngl::Vec3[maxinstances];
-    // in this case create a sort of supertorus distribution of points
-    // based on a random point
-    ngl::Random *rng=ngl::Random::instance();
-    ngl::Vec3 p;
-    for(unsigned int i=0; i<maxinstances; ++i)
-    {
-      p = rng->getRandomPoint(100.0, 100.0, 100.0);
-      data[i].set(p.m_x,p.m_y,p.m_z);
-    }
-    // now store this buffer data for later.
-    glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(ngl::Vec3), data, GL_STATIC_DRAW);
-    // attribute 0 is the inPos in our shader
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-    // finally we clear the point data as it is no longer used
-    delete [] data;
-
 
   glEnable(GL_DEPTH_TEST); // for removal of hidden surfaces
 
@@ -282,7 +246,6 @@ void NGLScene::initialize()
   // as re-size is not explicitly called we need to do this.
   glViewport(0,0,width(),height());
 }
-
 
 void NGLScene::loadMatricesToShader()
 {
@@ -303,66 +266,49 @@ void NGLScene::loadMatricesToShader()
   shader->setShaderParamFromMat4("M",M);
 }
 
-
-/*
 void NGLScene::updateParticles()
 {
     ngl::ShaderLib *shader=ngl::ShaderLib::instance();
 
-
-    (*shader)["TransformFeedback"]->use();
+    (*shader)["updateParticle"]->use();
     // if the number of instances have changed re-bind the buffer to the correct size
 
-    glBindBuffer(GL_ARRAY_BUFFER, m_matrixID);
-    glBufferData(GL_ARRAY_BUFFER, m_instances*sizeof(ngl::Mat4), NULL, GL_STATIC_DRAW);
-    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_matrixID);
-    glBindTexture(GL_TEXTURE_BUFFER,m_tboID);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, m_matrixID);
+    //shader->setRegisteredUniform1i("DeltaTime", m_timer.elapsed());
+    //shader->setRegisteredUniform1i("Time", m_timer.elapsed());
+    shader->setRegisteredUniform1i("Time", 1);
 
-    //----------------------------------------------------------------------------------------------------------------------
-    // SETUP DATA
-    //----------------------------------------------------------------------------------------------------------------------
-    glBindTexture(GL_TEXTURE_BUFFER, m_tboID);
-
-    // activate our vertex array for the points so we can fill in our matrix buffer
-    glBindVertexArray(m_dataID);
     // set the view for the camera
-    shader->setRegisteredUniformFromMat4("View",m_cam->getViewMatrix());
-    // this sets some per-vertex data values for the Matrix shader
-    // this flag tells OpenGL to discard the data once it has passed the transform stage, this means
-    // that none of it wil be drawn (RASTERIZED) remember to turn this back on once we have done this
     glEnable(GL_RASTERIZER_DISCARD);
+
+    //bind buffers
+    glBindBuffer(GL_ARRAY_BUFFER, m_particleBufferA);
+
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,sizeof(Particle),0); // position
+    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(Particle),(const GLvoid*)12); // velocity
+    glVertexAttribPointer(2,1,GL_FLOAT,GL_FALSE,sizeof(Particle),(const GLvoid*)24); // lifetime
+
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_particleBufferB);
+
     // redirect all draw output to the transform feedback buffer which is our buffer object matrix
     glBeginTransformFeedback(GL_POINTS);
-    // now draw our array of points (now is a good time to check out the feedback.vs shader to see what
-    // happens here)
 
     glDrawArrays(GL_POINTS, 0, m_instances);
-    // now signal that we have done with the feedback buffer
+
     glEndTransformFeedback();
+
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(2);
+
+    std::swap(m_particleBufferA, m_particleBufferB);
+
     // and re-enable rasterisation
     glDisable(GL_RASTERIZER_DISCARD);
 }
-*/
-
-ngl::Vec3 NGLScene::getCamPos()
-{
-
-    ngl::Mat4 tmp;
-    tmp=m_transform.getMatrix()*m_mouseGlobalTX;
-
-    ngl::Mat4 M = tmp*m_cam->getViewMatrix();
-
-    //M.inverse();
-
-    ngl::Vec4 P = m_cam->getEye();
-
-    return ngl::Vec3((M.m_m[0][0] * P.m_x) + (M.m_m[1][0] * P.m_x) + (M.m_m[2][0] * P.m_x) + (M.m_m[3][0] * P.m_x),
-                     (M.m_m[0][1] * P.m_y) + (M.m_m[1][1] * P.m_y) + (M.m_m[2][1] * P.m_y) + (M.m_m[3][1] * P.m_y),
-                     (M.m_m[0][2] * P.m_z) + (M.m_m[1][2] * P.m_z) + (M.m_m[2][2] * P.m_z) + (M.m_m[3][2] * P.m_z));
-
-}
-
 
 void NGLScene::drawParticles()
 {
@@ -377,28 +323,50 @@ void NGLScene::drawParticles()
     // now we are going to switch to our texture shader and render our boxes
     (*shader)["ParticleShader"]->use();
 
-    //data to send to shader
+    // data for the shader
+    ngl::Mat4 MV;
+    ngl::Mat4 MVP;
     ngl::Mat4 M;
     M=m_transform.getMatrix()*m_mouseGlobalTX;
+    MV=  M*m_cam->getViewMatrix();
+    MVP= M*m_cam->getVPMatrix();
 
-    shader->setRegisteredUniformFromMat4("ViewProjection",(M*m_cam->getVPMatrix()));
+    // disgusting method for getting cam position.
+    glm::mat3 rotMat;
+    rotMat[0][0] = MVP.m_m[0][0];
+    rotMat[0][1] = MVP.m_m[0][1];
+    rotMat[0][2] = MVP.m_m[0][2];
+    rotMat[1][0] = MVP.m_m[1][0];
+    rotMat[1][1] = MVP.m_m[1][1];
+    rotMat[1][2] = MVP.m_m[1][2];
+    rotMat[2][0] = MVP.m_m[2][0];
+    rotMat[2][1] = MVP.m_m[2][1];
+    rotMat[2][2] = MVP.m_m[2][2];
 
-    shader->setRegisteredUniformVec3("camPosition", getCamPos());
+    glm::vec3 d(MVP.m_m[3][0],
+                MVP.m_m[3][1],
+                MVP.m_m[3][3]);
 
-    std::cout<<getCamPos().m_x<<" "<<getCamPos().m_y<<" "<<getCamPos().m_z<<std::endl;
-    //std::cout<<m_cam->getEye().m_x<<" "<<m_cam->getEye().m_y<<" "<<m_cam->getEye().m_z<<std::endl;
+    glm::vec3 tmp = -d * rotMat;
 
-    // activate our vertex array object for the box
-    glBindVertexArray(m_dataID);
+    shader->setRegisteredUniformFromMat4("ViewProjection",MVP);
+
+    shader->setRegisteredUniformVec3("camPosition", ngl::Vec3(tmp.x, tmp.y, tmp.z));
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D,m_textureName);
     glPolygonMode(GL_FRONT_AND_BACK,m_polyMode);
 
-    //glDrawArrays(GL_TRIANGLES, 0, 6, m_instances);
-    glDrawArrays(GL_POINTS,0,m_instances);
-}
+    glBindBuffer(GL_ARRAY_BUFFER, m_particleBufferA);
 
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), 0); // position
+
+    glDrawArrays(GL_POINTS, 0, m_instances);
+
+    glDisableVertexAttribArray(0);
+}
 
 void NGLScene::render()
 {
@@ -417,12 +385,10 @@ void NGLScene::render()
    m_mouseGlobalTX.m_m[3][1] = m_modelPos.m_y;
    m_mouseGlobalTX.m_m[3][2] = m_modelPos.m_z;
 
-
-   //updateParticles();
+   updateParticles();
 
    drawParticles();
 
-   std::cout<<"tex "<<m_textureName<<" buffer id "<<m_tboID<<"\n";
    ++m_frames;
    glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
    m_text->setColour(1,1,0);
@@ -432,7 +398,6 @@ void NGLScene::render()
    m_text->renderText(10,40,text);
 }
 
-//----------------------------------------------------------------------------------------------------------------------
 void NGLScene::mouseMoveEvent (QMouseEvent * _event)
 {
   // note the method buttons() is the button state when event was called
@@ -463,8 +428,6 @@ void NGLScene::mouseMoveEvent (QMouseEvent * _event)
    }
 }
 
-
-//----------------------------------------------------------------------------------------------------------------------
 void NGLScene::mousePressEvent ( QMouseEvent * _event)
 {
   // this method is called when the mouse button is pressed in this case we
@@ -485,7 +448,6 @@ void NGLScene::mousePressEvent ( QMouseEvent * _event)
 
 }
 
-//----------------------------------------------------------------------------------------------------------------------
 void NGLScene::mouseReleaseEvent ( QMouseEvent * _event )
 {
   // this event is called when the mouse button is released
@@ -501,7 +463,6 @@ void NGLScene::mouseReleaseEvent ( QMouseEvent * _event )
   }
 }
 
-//----------------------------------------------------------------------------------------------------------------------
 void NGLScene::wheelEvent(QWheelEvent *_event)
 {
 
@@ -516,7 +477,6 @@ void NGLScene::wheelEvent(QWheelEvent *_event)
 	}
 	renderLater();
 }
-//----------------------------------------------------------------------------------------------------------------------
 
 void NGLScene::keyPressEvent(QKeyEvent *_event)
 {
@@ -555,7 +515,7 @@ void NGLScene::timerEvent( QTimerEvent *_event )
         m_timer.restart();
       }
      }
-      // re-draw GL
+  // re-draw GL
   renderNow();
 }
 

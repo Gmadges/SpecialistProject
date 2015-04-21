@@ -10,6 +10,8 @@
 
 #include<ngl/Vec3.h>
 
+
+
 //----------------------------------------------------------------------------------------------------------------------
 /// @file NGLScene.h
 /// @brief this class inherits from the Qt OpenGLWindow and allows us to use NGL to draw OpenGL
@@ -23,13 +25,7 @@
 /// put in this file
 //----------------------------------------------------------------------------------------------------------------------
 
-struct Particle
-{
-    float Type;
-    ngl::Vec3 Pos;
-    ngl::Vec3 Vel;
-    float LifetimeMillis;
-};
+
 
 
 class NGLScene : public OpenGLWindow
@@ -228,8 +224,14 @@ private:
 
     ngl::Vec3 getCamPos();
 
-    GLuint m_particleBuffer[2];
-    GLuint m_transformFeedback[2];
+    GLuint m_particleBufferA;
+    GLuint m_particleBufferB;
+
+    GLuint m_PosID;
+    GLuint m_VelID;
+    GLuint m_AgeID;
+    GLuint m_texID;
+    //GLuint m_PosID;
 
 };
 
