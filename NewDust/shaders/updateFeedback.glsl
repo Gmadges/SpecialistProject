@@ -10,12 +10,34 @@ out vec3 Position0;
 out vec3 Velocity0;
 out float Age0;
 
-//This shader basically just flip flops the data from one buffer to the other
+uniform float DeltaTimeMillis;
+uniform float Time;
 
 void main()
 {
+    if(Age <= 50000)
+    {
+        Position0 = Position + Velocity;
+
+        Velocity0 = Velocity + vec3(0.0, -9.8, 0.0);
+    }
+    else
+    {
+        Position0 = vec3(0.0, 0.0, 0.0);
+
+        vec3 tmp;
+
+        tmp.x = noise1(Time + gl_VertexID) * 5.0;
+        tmp.y = 100.0;
+        tmp.z = noise1(Time + gl_VertexID) * 5.0;
+
+        Velocity0 = tmp;
+
+        Age0 = 0.0f;
+    }
+
     Type0 = Type;
-    Position0 = Position;
-    Velocity0 = Velocity;
-    Age0 = Age;
+
+    Age0 += (DeltaTimeMillis/1000.0);
+
 }

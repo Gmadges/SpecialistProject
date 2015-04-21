@@ -216,17 +216,17 @@ private:
    /// @brief load a texture from a QImage
    //----------------------------------------------------------------------------------------------------------------------
     void loadTexture();
-    void createDataPoints();
+
     void timerEvent(QTimerEvent *);
 
     void particleSystemInit();
-
     void InitDrawingShaders();
 
 
     void updateParticles();
     void drawParticles();
 
+    ngl::Vec3 getCamPos();
 
     GLuint m_particleBuffer[2];
     GLuint m_transformFeedback[2];

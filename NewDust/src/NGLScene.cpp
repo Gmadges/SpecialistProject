@@ -9,6 +9,7 @@
 #include <ngl/VAOPrimitives.h>
 #include <ngl/ShaderLib.h>
 #include <ngl/Random.h>
+#include <ngl/Transformation.h>
 
 #include<QGLWidget>
 
@@ -122,25 +123,34 @@ void NGLScene::InitDrawingShaders()
 {
     ngl::ShaderLib *shader=ngl::ShaderLib::instance();
 
-    shader->createShaderProgram("TextureShader");
+    shader->createShaderProgram("ParticleShader");
 
-    shader->attachShader("TextureVertex",ngl::VERTEX);
-    shader->attachShader("TextureFragment",ngl::FRAGMENT);
-    shader->loadShaderSource("TextureVertex","shaders/drawVertex.glsl");
-    shader->loadShaderSource("TextureFragment","shaders/drawFragment.glsl");
+    shader->attachShader("ParticleVertex",ngl::VERTEX);
+    shader->attachShader("ParticleFragment",ngl::FRAGMENT);
+    shader->attachShader("ParticleGeometry",ngl::GEOMETRY);
 
-    shader->compileShader("TextureVertex");
-    shader->compileShader("TextureFragment");
-    shader->attachShaderToProgram("TextureShader","TextureVertex");
-    shader->attachShaderToProgram("TextureShader","TextureFragment");
+
+    shader->loadShaderSource("ParticleVertex","shaders/drawVertex.glsl");
+    shader->loadShaderSource("ParticleFragment","shaders/drawFragment.glsl");
+    shader->loadShaderSource("ParticleGeometry","shaders/drawGeometry.glsl");
+
+    shader->compileShader("ParticleVertex");
+    shader->compileShader("ParticleFragment");
+    shader->compileShader("ParticleGeometry");
+
+
+    shader->attachShaderToProgram("ParticleShader","ParticleVertex");
+    shader->attachShaderToProgram("ParticleShader","ParticleFragment");
+    shader->attachShaderToProgram("ParticleShader","ParticleGeometry");
 
     // link
-    shader->linkProgramObject("TextureShader");
-    shader->use("TextureShader");
-    // register the uniforms for later uses
-    shader->autoRegisterUniforms("TextureShader");
-}
+    shader->linkProgramObject("ParticleShader");
+    shader->use("ParticleShader");
 
+    // register the uniforms for later uses
+    shader->autoRegisterUniforms("ParticleShader");
+}
+/*
 void NGLScene::particleSystemInit()
 {
     Particle Particles[10000];
@@ -204,7 +214,7 @@ void NGLScene::particleSystemInit()
     shader->setShaderParam1i("tex1",0);
 
 }
-
+*/
 void NGLScene::initialize()
 {
   // we must call this first before any other GL commands to load and link the
@@ -231,7 +241,39 @@ void NGLScene::initialize()
   // The final two are near and far clipping planes of 0.5 and 10
   m_cam->setShape(45,(float)720.0/576.0,0.5,150);
 
+  InitDrawingShaders();
+
   loadTexture();
+
+  GLuint dataArray;
+    // first create a Vertex array for out data points, we will create max instances
+    // size of data but only use a certain amount of them when we draw
+    glGenVertexArrays(1,&m_dataID);
+    // bind the array
+    glBindVertexArray(m_dataID);
+    // generate a buffer ready to store our data
+    glGenBuffers(1, &dataArray );
+    glBindBuffer(GL_ARRAY_BUFFER, dataArray);
+    // allocate space for the vec3 for each point
+    ngl::Vec3 *data = new ngl::Vec3[maxinstances];
+    // in this case create a sort of supertorus distribution of points
+    // based on a random point
+    ngl::Random *rng=ngl::Random::instance();
+    ngl::Vec3 p;
+    for(unsigned int i=0; i<maxinstances; ++i)
+    {
+      p = rng->getRandomPoint(100.0, 100.0, 100.0);
+      data[i].set(p.m_x,p.m_y,p.m_z);
+    }
+    // now store this buffer data for later.
+    glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(ngl::Vec3), data, GL_STATIC_DRAW);
+    // attribute 0 is the inPos in our shader
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+    // finally we clear the point data as it is no longer used
+    delete [] data;
+
 
   glEnable(GL_DEPTH_TEST); // for removal of hidden surfaces
 
@@ -248,7 +290,7 @@ void NGLScene::loadMatricesToShader()
 
   ngl::Mat4 MV;
   ngl::Mat4 MVP;
-  ngl::Mat3 normalMatrix;    ngl::ShaderLib *shader=ngl::ShaderLib::instance();
+  ngl::Mat3 normalMatrix;
   ngl::Mat4 M;
   M=m_transform.getMatrix()*m_mouseGlobalTX;
   MV=  M*m_cam->getViewMatrix();
@@ -261,6 +303,8 @@ void NGLScene::loadMatricesToShader()
   shader->setShaderParamFromMat4("M",M);
 }
 
+
+/*
 void NGLScene::updateParticles()
 {
     ngl::ShaderLib *shader=ngl::ShaderLib::instance();
@@ -275,8 +319,6 @@ void NGLScene::updateParticles()
     glBindTexture(GL_TEXTURE_BUFFER,m_tboID);
     glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, m_matrixID);
 
-
-
     //----------------------------------------------------------------------------------------------------------------------
     // SETUP DATA
     //----------------------------------------------------------------------------------------------------------------------
@@ -287,9 +329,6 @@ void NGLScene::updateParticles()
     // set the view for the camera
     shader->setRegisteredUniformFromMat4("View",m_cam->getViewMatrix());
     // this sets some per-vertex data values for the Matrix shader
-    shader->setRegisteredUniform4f("data",0.3,0.6,0.5,1.2);
-    // pass in the mouse rotation
-    shader->setRegisteredUniformFromMat4("mouseRotation",m_mouseGlobalTX);
     // this flag tells OpenGL to discard the data once it has passed the transform stage, this means
     // that none of it wil be drawn (RASTERIZED) remember to turn this back on once we have done this
     glEnable(GL_RASTERIZER_DISCARD);
@@ -304,12 +343,31 @@ void NGLScene::updateParticles()
     // and re-enable rasterisation
     glDisable(GL_RASTERIZER_DISCARD);
 }
+*/
+
+ngl::Vec3 NGLScene::getCamPos()
+{
+
+    ngl::Mat4 tmp;
+    tmp=m_transform.getMatrix()*m_mouseGlobalTX;
+
+    ngl::Mat4 M = tmp*m_cam->getViewMatrix();
+
+    //M.inverse();
+
+    ngl::Vec4 P = m_cam->getEye();
+
+    return ngl::Vec3((M.m_m[0][0] * P.m_x) + (M.m_m[1][0] * P.m_x) + (M.m_m[2][0] * P.m_x) + (M.m_m[3][0] * P.m_x),
+                     (M.m_m[0][1] * P.m_y) + (M.m_m[1][1] * P.m_y) + (M.m_m[2][1] * P.m_y) + (M.m_m[3][1] * P.m_y),
+                     (M.m_m[0][2] * P.m_z) + (M.m_m[1][2] * P.m_z) + (M.m_m[2][2] * P.m_z) + (M.m_m[3][2] * P.m_z));
+
+}
+
 
 void NGLScene::drawParticles()
 {
-    //----------------------------------------------------------------------------------------
-    // DRAW INSTANCES
-    //----------------------------------------------------------------------------------------------------------------------
+    ngl::ShaderLib *shader=ngl::ShaderLib::instance();
+
     // clear the screen and depth buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -317,15 +375,22 @@ void NGLScene::drawParticles()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // now we are going to switch to our texture shader and render our boxes
-    (*shader)["TextureShader"]->use();
-    // set the projection matrix for our camera
-    shader->setRegisteredUniformFromMat4("Projection",m_cam->getProjectionMatrix());
-    // activate our vertex array object for the box
-    glBindVertexArray(m_vaoID);
+    (*shader)["ParticleShader"]->use();
 
-    // activate the texture
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_BUFFER, m_tboID);
+    //data to send to shader
+    ngl::Mat4 M;
+    M=m_transform.getMatrix()*m_mouseGlobalTX;
+
+    shader->setRegisteredUniformFromMat4("ViewProjection",(M*m_cam->getVPMatrix()));
+
+    shader->setRegisteredUniformVec3("camPosition", getCamPos());
+
+    std::cout<<getCamPos().m_x<<" "<<getCamPos().m_y<<" "<<getCamPos().m_z<<std::endl;
+    //std::cout<<m_cam->getEye().m_x<<" "<<m_cam->getEye().m_y<<" "<<m_cam->getEye().m_z<<std::endl;
+
+    // activate our vertex array object for the box
+    glBindVertexArray(m_dataID);
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D,m_textureName);
     glPolygonMode(GL_FRONT_AND_BACK,m_polyMode);
@@ -353,7 +418,7 @@ void NGLScene::render()
    m_mouseGlobalTX.m_m[3][2] = m_modelPos.m_z;
 
 
-   updateParticles();
+   //updateParticles();
 
    drawParticles();
 

@@ -2,16 +2,18 @@
 // this is a pointer to the current 2D texture object
 uniform sampler2D tex;
 // the vertex UV
-in vec2 vertUV;
+in vec2 texCoord;
 // the final fragment colour
-layout(location=0)out vec4 outColour;
-void main ()
+
+out vec4 FragColour;
+
+void main()
 {
+    FragColour = texture2D(tex, texCoord);
 
-    // set the fragment colour to the current texture
-    //outColour = texture(tex,vertUV);
+    //FragColour = vec4(1,1,0,0.5);
 
-    outColour = vec4(0.5, 0.5, 1.0, 0.5);
-
-
+    if (FragColour.r == 0 && FragColour.g == 0 && FragColour.b == 0) {
+        discard;
+    }
 }
