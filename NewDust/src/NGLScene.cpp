@@ -233,9 +233,49 @@ void NGLScene::initialize()
   // The final two are near and far clipping planes of 0.5 and 10
   m_cam->setShape(45,(float)720.0/576.0,0.5,150);
 
+  Particle Particles[maxinstances];
+
+  ngl::Random *rng = ngl::Random::instance();
+
+  /*create particle data.
+  for(unsigned int i = 0; i < maxinstances; i++)
+  {
+      Particles[i].Pos = rng->getRandomPoint(50,50,50);
+      Particles[i].Vel = ngl::Vec3(0.0f, 100.0f, 0.0f);
+      Particles[i].LifetimeMillis = 0.0f;
+  }
+
+  // Create VBO for input on even-numbered frames and output on odd-numbered frames:
+  glGenBuffers(1, &m_particleBufferA);
+  glBindBuffer(GL_ARRAY_BUFFER, m_particleBufferA);
+  glBufferData(GL_ARRAY_BUFFER, maxinstances*sizeof(Particle), Particles, GL_STREAM_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  */
+
+  glGenVertexArrays(1,&m_dataID);
+  // bind the array
+  glBindVertexArray(m_dataID);
+  // allocate space for the vec3 for each point
+  ngl::Vec3 *data = new ngl::Vec3[maxinstances];
+  // in this case create a sort of supertorus distribution of points
+  // based on a random point
+
+  ngl::Vec3 p;
+  for(unsigned int i=0; i<maxinstances; ++i)
+  {
+      p=rng->getRandomPoint(50,50,50);
+      data[i].set(p.m_x,p.m_y,p.m_z);
+  }
+  // now store this buffer data for later.
+  glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(ngl::Vec3), data, GL_STATIC_DRAW);
+  // attribute 0 is the inPos in our shader
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+
   InitDrawingShaders();
 
-  particleSystemInit();
+  //particleSystemInit();
 
   loadTexture();
 
@@ -357,11 +397,13 @@ void NGLScene::drawParticles()
     glBindTexture(GL_TEXTURE_2D,m_textureName);
     glPolygonMode(GL_FRONT_AND_BACK,m_polyMode);
 
-    glBindBuffer(GL_ARRAY_BUFFER, m_particleBufferA);
+    //glBindBuffer(GL_ARRAY_BUFFER, m_particleBufferA);
+    glBindBuffer(GL_ARRAY_BUFFER, m_dataID);
 
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), 0); // position
+    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), 0); // position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ngl::Vec3), 0); // position
 
     glDrawArrays(GL_POINTS, 0, m_instances);
 
@@ -385,7 +427,7 @@ void NGLScene::render()
    m_mouseGlobalTX.m_m[3][1] = m_modelPos.m_y;
    m_mouseGlobalTX.m_m[3][2] = m_modelPos.m_z;
 
-   updateParticles();
+   //updateParticles();
 
    drawParticles();
 
