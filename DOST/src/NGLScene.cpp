@@ -1,3 +1,4 @@
+
 #include <QMouseEvent>
 #include <QGuiApplication>
 
@@ -231,6 +232,8 @@ void NGLScene::initTestData()
     // bind the array
     glBindVertexArray(m_dataID);
     // generate a buffer ready to store our data
+    glGenBuffers(1, &m_buffer1);
+    glBindBuffer(GL_ARRAY_BUFFER, m_buffer1);
     // allocate space for the vec3 for each point
     ngl::Vec3 *data = new ngl::Vec3[maxinstances];
     // in this case create a sort of supertorus distribution of points
@@ -239,18 +242,22 @@ void NGLScene::initTestData()
     ngl::Vec3 p;
     for(unsigned int i=0; i<maxinstances; ++i)
     {
-      p = rng->getRandomPoint(100.0, 100.0, 100.0);
+      p = rng->getRandomPoint(1.0, 1.0, 1.0);
       data[i].set(p.m_x,p.m_y,p.m_z);
     }
     // now store this buffer data for later.
-    glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(ngl::Vec3), data, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(ngl::Vec3), data, GL_STATIC_DRAW);
+    // attribute 0 is the inPos in our shader
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
+    // finally we clear the point data as it is no longer used
     delete [] data;
 }
 
 void NGLScene::initTransform()
 {
-    /*
+
     // now to load the shader and set the values
     // grab an instance of shader manager
     ngl::ShaderLib *shader=ngl::ShaderLib::instance();
@@ -267,10 +274,9 @@ void NGLScene::initTransform()
     // first get the shader ID
     GLuint id=shader->getProgramID("TransformFeedback");
     // create a list of the varyings we want to attach to (this is the out in our shader)
-    const char *varyings[1] = { "ModelView" };
-    // The names of the vertex or geometry shader outputs to be recorded in
-    // transform feedback mode are specified using glTransformFeedbackVaryings
-    // in this case we are storing 1 (ModelView) and the attribs are
+    const char *varyings[1] = { "Position0" };
+
+
     glTransformFeedbackVaryings(id, 1, varyings, GL_INTERLEAVED_ATTRIBS);
     // now link the shader
     shader->linkProgramObject("TransformFeedback");
@@ -279,7 +285,13 @@ void NGLScene::initTransform()
     shader->autoRegisterUniforms("TransformFeedback");
     // now we are going to create our texture shader for drawing the cube
 
-    */
+    glGenBuffers(1,&m_buffer2);
+    glBindBuffer(GL_ARRAY_BUFFER, m_buffer2);
+
+    glBufferData(GL_ARRAY_BUFFER, maxinstances*sizeof(ngl::Vec3), NULL, GL_DYNAMIC_DRAW);
+    // bind a buffer object to an indexed buffer target in this case we are setting out matrix data
+    // to the transform feedback
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_buffer2);
 }
 
 void NGLScene::initDrawShader()
@@ -346,43 +358,13 @@ void NGLScene::initialize()
   m_instancesPerBlock = maxUniformBlockSize / sizeof(ngl::Mat4);
   std::cout<<"Number of instances per block is "<<m_instancesPerBlock<<"\n";
 
-  //initTestData();
+  initTestData();
+  initTransform();
 
   initDrawShader();
   // create our cube
 
   loadTexture();
-
-  GLuint dataArray;
-    // first create a Vertex array for out data points, we will create max instances
-    // size of data but only use a certain amount of them when we draw
-    glGenVertexArrays(1,&m_dataID);
-    // bind the array
-    glBindVertexArray(m_dataID);
-    // generate a buffer ready to store our data
-    glGenBuffers(1, &dataArray );
-    glBindBuffer(GL_ARRAY_BUFFER, dataArray);
-    // allocate space for the vec3 for each point
-    ngl::Vec3 *data = new ngl::Vec3[maxinstances];
-    // in this case create a sort of supertorus distribution of points
-    // based on a random point
-    ngl::Random *rng=ngl::Random::instance();
-    ngl::Vec3 p;
-    for(unsigned int i=0; i<maxinstances; ++i)
-    {
-      p = rng->getRandomPoint(100.0, 100.0, 100.0);
-      data[i].set(p.m_x,p.m_y,p.m_z);
-    }
-    // now store this buffer data for later.
-    glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(ngl::Vec3), data, GL_STATIC_DRAW);
-    // attribute 0 is the inPos in our shader
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-    // finally we clear the point data as it is no longer used
-    delete [] data;
-
-
 
   glEnable(GL_DEPTH_TEST); // for removal of hidden surfaces
   m_text = new ngl::Text(QFont("Arial",14));
@@ -393,6 +375,10 @@ void NGLScene::initialize()
 
   // as re-size is not explicitly called we need to do this.
   glViewport(0,0,width(),height());
+
+
+  std::cout<<"buffer1: "<<m_buffer1<<std::endl;
+  std::cout<<"buffer2: "<<m_buffer2<<std::endl;
 }
 
 void NGLScene::loadMatricesToShader()
@@ -416,26 +402,16 @@ void NGLScene::loadMatricesToShader()
 
 void NGLScene::updateParticles()
 {
-    /*
+
     ngl::ShaderLib *shader=ngl::ShaderLib::instance();
     (*shader)["TransformFeedback"]->use();
     // if the number of instances have changed re-bind the buffer to the correct size
-    if(m_updateBuffer==true)
-    {
-      glBindBuffer(GL_ARRAY_BUFFER, m_matrixID);
-      glBufferData(GL_ARRAY_BUFFER, m_instances*sizeof(ngl::Mat4), NULL, GL_STATIC_DRAW);
-      glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_matrixID);
-      m_updateBuffer=false;
-    }
 
-    // activate our vertex array for the points so we can fill in our matrix buffer
+
     glBindVertexArray(m_dataID);
-    // set the view for the camera
-    shader->setRegisteredUniformFromMat4("View",m_cam->getViewMatrix());
-    // this sets some per-vertex data values for the Matrix shader
-    shader->setRegisteredUniform4f("data",0.3,0.6,0.5,1.2);
-    // pass in the mouse rotation
-    shader->setRegisteredUniformFromMat4("mouseRotation",m_mouseGlobalTX);
+
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_buffer2);
+
     // this flag tells OpenGL to discard the data once it has passed the transform stage, this means
     // that none of it wil be drawn (RASTERIZED) remember to turn this back on once we have done this
     glEnable(GL_RASTERIZER_DISCARD);
@@ -447,8 +423,10 @@ void NGLScene::updateParticles()
     // now signal that we have done with the feedback buffer
     glEndTransformFeedback();
     // and re-enable rasterisation
+
+    std::swap(m_buffer1, m_buffer2);
+
     glDisable(GL_RASTERIZER_DISCARD);
-    */
 }
 
 void NGLScene::drawParticles()
@@ -494,6 +472,12 @@ void NGLScene::drawParticles()
 
     // activate our vertex array object for the box
     glBindVertexArray(m_dataID);
+    glBindBuffer(GL_ARRAY_BUFFER, m_buffer1);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+    //glBindBuffer(GL_ARRAY_BUFFER, m_dataID);
+    //glVertexPointer(3, GL_FLOAT, 0, 0);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D,m_textureName);
@@ -521,9 +505,13 @@ void NGLScene::render()
   m_mouseGlobalTX.m_m[3][1] = m_modelPos.m_y;
   m_mouseGlobalTX.m_m[3][2] = m_modelPos.m_z;
 
-  //updateParticles();
+
+  std::cout<<"buffer1: "<<m_buffer1<<std::endl;
 
   drawParticles();
+
+
+  updateParticles();
 
   ++m_frames;
   glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
@@ -606,16 +594,16 @@ void NGLScene::mouseReleaseEvent ( QMouseEvent * _event )
 void NGLScene::wheelEvent(QWheelEvent *_event)
 {
 
-	// check the diff of the wheel position (0 means no change)
-	if(_event->delta() > 0)
-	{
-		m_modelPos.m_z+=ZOOM;
-	}
-	else if(_event->delta() <0 )
-	{
-		m_modelPos.m_z-=ZOOM;
-	}
-	renderLater();
+    // check the diff of the wheel position (0 means no change)
+    if(_event->delta() > 0)
+    {
+        m_modelPos.m_z+=ZOOM;
+    }
+    else if(_event->delta() <0 )
+    {
+        m_modelPos.m_z-=ZOOM;
+    }
+    renderLater();
 }
 //----------------------------------------------------------------------------------------------------------------------
 

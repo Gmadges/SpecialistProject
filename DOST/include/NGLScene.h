@@ -211,6 +211,9 @@ private:
 
     void initTestData();
 
+    GLuint m_buffer1;
+    GLuint m_buffer2;
+
 
 };
 

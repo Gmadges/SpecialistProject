@@ -1,47 +1,42 @@
-#version 330 core
-// some of this code is borrowed / modified from the
-// Apple 	WWDC 2011 Instancing demo
-// the view matrix for our object this will be
-// created from the camera
-uniform mat4 View;
-// per draw data to modify our objects
-uniform vec4 data;
-// mouse rotatin passed in from our objet
-uniform mat4 mouseRotation;
-// this is the point position passed in
-layout (location =0)in vec3 inPos;
-// this matrix will be used as an output from our feedback buffer and fed
-// into the next shader for per object transforms
-out mat4 ModelView;
+#version 330
+
+layout (location = 0) in vec3 Position;
+//layout (location = 1) in vec3 Velocity;
+//layout (location = 2) in float Age;
+
+out vec3 Position0;
+//out vec3 Velocity0;
+//out float Age0;
+
+//uniform float DeltaTimeMillis;
+//uniform float Time;
+
 void main()
 {
-	//	Scale and spin each instance by a unique amount
-	float spin = (gl_VertexID & 31) - 15.5;
-	float c = cos(data.x * spin);
-	float s = sin(data.x * spin);
-	float y = (gl_VertexID & 15) * 0.125 + 0.25;
-	float z = ((gl_VertexID + 5) & 63) * 0.03125 + 0.25;
-	mat4 Model = mat4(   c, 0.0,  -s, 0.0,
-												 0.0,   y, 0.0, 0.0,
-													 s, 0.0, z*c, 0.0,
-												 0.0, 0.0, 0.0, 1.0);
-	// Translate each instance
-	Model[3].xyz = inPos;
-	// Rotate all instances around Z, scaled by dist
-	float dist = length(inPos.xyz);
-	float speed = data.y - dist * data.z + (gl_VertexID & 7) * 0.01;
-	c = cos(data.x * speed);
-	s = sin(data.x * speed);
-	mat4 rotY = mat4(   c,   s, 0.0, 0.0,
-												 -s,   c, 0.0, 0.0,
-												0.0, 0.0, 1.0, 0.0,
-												0.0, 0.0, 0.0, 1.0);
-	Model = rotY * Model;
-	Model = mouseRotation * Model;
-	// Scale each instance
-	Model[0] *= data.w;
-	Model[1] *= data.w;
-	Model[2] *= data.w;
-	// Since we are only rendering from a single view, bake that in
-	ModelView = View * Model;
+
+    Position0 = Position + vec3(1,1,0);
+
+    /*
+    if(Age <= 5000)
+    {
+        Position0 = Position + Velocity;
+
+        Velocity0 = Velocity + vec3(0.0, -9.8, 0.0);
+    }
+    else
+    {
+        Position0 = vec3(0.0, 0.0, 0.0);
+
+        vec3 tmp;
+
+        tmp.x = noise1(gl_VertexID) * 5.0;
+        tmp.y = 500.0;
+        tmp.z = noise1(gl_VertexID) * 5.0;
+
+        Velocity0 = tmp;
+
+        Age0 = 0.0f;
+    }
+
+    */
 }

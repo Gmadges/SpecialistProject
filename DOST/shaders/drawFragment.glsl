@@ -10,9 +10,9 @@ out vec4 FragColour;
 
 void main()
 {
-    FragColour = texture2D(tex, texCoord);
+    //FragColour = texture2D(tex, texCoord);
 
-    //FragColour = vec4(1,0,0,1);
+    FragColour = vec4(1,0,0,0.5);
 
     if (FragColour.r == 0 && FragColour.g == 0 && FragColour.b == 0)
     {
