@@ -12,7 +12,7 @@ void main()
 {
     //FragColour = texture2D(tex, texCoord);
 
-    FragColour = vec4(1,0,0,0.5);
+    FragColour = vec4(1,1,1,0.2);
 
     if (FragColour.r == 0 && FragColour.g == 0 && FragColour.b == 0)
     {
