@@ -33,7 +33,7 @@ const static float ZOOM=5.0;
 //----------------------------------------------------------------------------------------------------------------------
 /// num instances
 //----------------------------------------------------------------------------------------------------------------------
-const static unsigned int maxinstances=100000;
+const static unsigned int maxinstances=10000;
 
 
 NGLScene::NGLScene(QWindow *_parent) : OpenGLWindow(_parent)
@@ -43,14 +43,13 @@ NGLScene::NGLScene(QWindow *_parent) : OpenGLWindow(_parent)
   // mouse rotation values set to 0
   m_spinXFace=0;
   m_spinYFace=0;
-  setTitle("Divisor Instancing");
+  setTitle("Dust");
   m_fpsTimer =startTimer(0);
   m_fps=0;
   m_frames=0;
   m_timer.start();
   m_polyMode=GL_FILL;
   m_updateBuffer=true;
-
 }
 
 
@@ -90,115 +89,7 @@ void NGLScene::loadTexture()
                    GL_UNSIGNED_BYTE,
                    GLimage.bits()
                    );
-
   }
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-void NGLScene::createDataPoints()
-{
-  GLuint dataArray;
-  // first create a Vertex array for out data points, we will create max instances
-  // size of data but only use a certain amount of them when we draw
-  glGenVertexArrays(1,&m_dataID);
-  // bind the array
-  glBindVertexArray(m_dataID);
-  // generate a buffer ready to store our data
-  glGenBuffers(1, &dataArray );
-  glBindBuffer(GL_ARRAY_BUFFER, dataArray);
-  // allocate space for the vec3 for each point
-  ngl::Vec3 *data = new ngl::Vec3[maxinstances];
-  // in this case create a sort of supertorus distribution of points
-  // based on a random point
-  ngl::Random *rng=ngl::Random::instance();
-  ngl::Vec3 p;
-  for(unsigned int i=0; i<maxinstances; ++i)
-  {
-    float angle = rng->randomNumber(M_PI);
-    float radius = rng->randomNumber(1.0);
-    float ca = cosf(angle);
-    float sa = sinf(angle);
-    float cs = ca < 0 ? -1 : 1;
-    float ss = sa < 0 ? -1 : 1;
-    float x = radius * cs * pow(fabsf(ca), 1.2);
-    float y = radius * ss * pow(fabsf(sa), 1.2);
-
-    p=rng->getRandomPoint(x*80,y,x+y*80);
-    data[i].set(p.m_x,p.m_y,p.m_z);
-  }
-  // now store this buffer data for later.
-  glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(ngl::Vec3), data, GL_STATIC_DRAW);
-  // attribute 0 is the inPos in our shader
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-  // finally we clear the point data as it is no longer used
-  delete [] data;
-
-}
-//----------------------------------------------------------------------------------------------------------------------
-void NGLScene::createCube(GLfloat _scale )
-{
-
-   // vertex coords array
-  GLfloat vertices[] = {
-                        -1,1,1,1,1,1,1,-1,1, -1,-1,1, 1,-1,1,-1,1,1,  //front
-                        };
-  GLfloat texture[] = {
-                        0,1,1,0,1,1 ,0,0,1,0,0,1, // front
-                        };
-
-
-  std::cout<<sizeof(vertices)/sizeof(GLfloat)<<"\n";
-  // first we scale our vertices to _scale
-  for(unsigned int i=0; i<sizeof(vertices)/sizeof(GLfloat); ++i)
-  {
-    vertices[i]*=_scale;
-  }
-
-  glGenVertexArrays(1, &m_vaoID);
-
-  // now bind this to be the currently active one
-  glBindVertexArray(m_vaoID);
-  // now we create two VBO's one for each of the objects these are only used here
-  // as they will be associated with the vertex array object
-  GLuint vboID[2];
-  glGenBuffers(2, &vboID[0]);
-  // now we will bind an array buffer to the first one and load the data for the verts
-  glBindBuffer(GL_ARRAY_BUFFER, vboID[0]);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices)*sizeof(GLfloat), vertices, GL_STATIC_DRAW);
-  // now we bind the vertex attribute pointer for this object in this case the
-  // vertex data
-  glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,0);
-  glEnableVertexAttribArray(0);
-  // now we repeat for the UV data using the second VBO
-  glBindBuffer(GL_ARRAY_BUFFER, vboID[1]);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(texture)*sizeof(GLfloat), texture, GL_STATIC_DRAW);
-  glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,0,0);
-  glEnableVertexAttribArray(1);
-  // generate and bind our matrix buffer this is going to be fed to the feedback shader to
-  // generate our model position data for later, if we update how many instances we use
-  // this will need to be re-generated (done in the draw routine)
-  glGenBuffers(1,&m_matrixID);
-  glBindBuffer(GL_ARRAY_BUFFER, m_matrixID);
-
-  glBufferData(GL_ARRAY_BUFFER, maxinstances*sizeof(ngl::Mat4), NULL, GL_STATIC_DRAW);
-  // bind a buffer object to an indexed buffer target in this case we are setting out matrix data
-  // to the transform feedback
-  glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, m_matrixID);
-
-  glEnableVertexAttribArray(2);
-  glVertexAttribPointer    (2, 4, GL_FLOAT, GL_FALSE, sizeof(ngl::Mat4), BUFFER_OFFSET(0));
-  glVertexAttribDivisor (2, 1);
-  glEnableVertexAttribArray(3);
-  glVertexAttribPointer    (3, 4, GL_FLOAT, GL_FALSE, sizeof(ngl::Mat4), BUFFER_OFFSET(16));
-  glVertexAttribDivisor (3, 1);
-  glEnableVertexAttribArray(4);
-  glVertexAttribPointer    (4, 4, GL_FLOAT, GL_FALSE, sizeof(ngl::Mat4), BUFFER_OFFSET(32));
-  glVertexAttribDivisor (4, 1);
-  glEnableVertexAttribArray(5);
-  glVertexAttribPointer    (5, 4, GL_FLOAT, GL_FALSE, sizeof(ngl::Mat4), BUFFER_OFFSET(48));
-  glVertexAttribDivisor (5, 1);
 }
 
 void NGLScene::resizeEvent(QResizeEvent *_event )
@@ -233,9 +124,11 @@ void NGLScene::initTestData()
     ngl::Vec3 p;
     for(unsigned int i=0; i<maxinstances; ++i)
     {
-      p = rng->getRandomPoint(10, 20, 10);
+      float x = rng->randomNumber(5);
+      float y = rng->randomPositiveNumber(10);
+      float z = rng->randomNumber(5);
       data[i].pos.set(0,0,0);
-      data[i].vel.set(p.m_x,p.m_y,p.m_z);
+      data[i].vel.set(x,y+10,z);
       data[i].age = rng->randomPositiveNumber()*100;
     }
     // now store this buffer data for later.
@@ -417,6 +310,18 @@ void NGLScene::updateParticles()
     glBeginTransformFeedback(GL_POINTS);
     // now draw our array of points (now is a good time to check out the feedback.vs shader to see what
     // happens here)
+
+    GLuint time = (float)m_timer.msecsSinceStartOfDay();
+    GLuint deltaTime = (float)m_timer.msec();
+
+    std::cout<<time<<std::endl;
+
+    shader->setRegisteredUniform1f("Time", (float)time);
+    shader->setRegisteredUniform1f("DeltaTimeMillis", (float)deltaTime);
+
+    std::cout<<"time: "<<(float)time<<std::endl;
+    std::cout<<"deltaTime: "<<(float)deltaTime<<std::endl;
+
     glDrawArrays(GL_POINTS, 0, maxinstances);
     // now signal that we have done with the feedback buffer
     glEndTransformFeedback();
@@ -432,6 +337,7 @@ void NGLScene::drawParticles()
     ngl::ShaderLib *shader=ngl::ShaderLib::instance();
 
     // clear the screen and depth buffer
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glEnable(GL_BLEND);
@@ -492,7 +398,9 @@ void NGLScene::drawParticles()
 void NGLScene::render()
 {
   // clear the screen and depth buffer
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  //stop this so its doesnt put you in a secret.
+  //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   // Rotation based on the mouse position for our global
   // transform
   ngl::Mat4 rotX;
@@ -507,18 +415,25 @@ void NGLScene::render()
   m_mouseGlobalTX.m_m[3][1] = m_modelPos.m_y;
   m_mouseGlobalTX.m_m[3][2] = m_modelPos.m_z;
 
-  drawParticles();
 
-  std::cout<<"buffer1: "<<m_buffer1<<std::endl;
+  if(m_frames%2 == 1)
+  {
+        updateParticles();
+  }
+  else
+  {
+        drawParticles();
+  }
 
-  updateParticles();
+
+  //std::cout<<"buffer1: "<<m_buffer1<<std::endl;
 
   ++m_frames;
   glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
   m_text->setColour(1,1,0);
   QString text=QString("Texture and Vertex Array Object %1 instances Demo %2 fps").arg(maxinstances).arg(m_fps);
   m_text->renderText(10,20,text);
-  text=QString("Num vertices = %1 num triangles = %2").arg(maxinstances*36).arg(maxinstances*12);
+  text=QString("Num vertices = %1 ").arg(maxinstances*4);
   m_text->renderText(10,40,text);
 }
 

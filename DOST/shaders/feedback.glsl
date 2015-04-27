@@ -8,8 +8,8 @@ out vec3 Position0;
 out vec3 Velocity0;
 out float Age0;
 
-//uniform float DeltaTimeMillis;
-//uniform float Time;
+uniform float DeltaTimeMillis;
+uniform float Time;
 
 float rand(vec2 n)
 {
@@ -23,24 +23,18 @@ void main()
     {
         Position0 = Position + Velocity;
 
-        Velocity0 = Velocity;
+        float y = rand(Position.xy);
 
-        Age0 = Age + 1;
+        Velocity0 = Velocity - vec3(0,y,0);
+
+        Age0 = Age + 0.1;
     }
     else
     {
         Position0 = vec3(0.0, 0.0, 0.0);
 
-        float tmp = rand(Position.xy);
+        Velocity0 = vec3(rand(Position.xy),(rand(Position.zx)*5)+5,rand(Position.yz));
 
-        vec3 vel;
-
-        vel.x = tmp * 10;
-        vel.y = tmp * 20;
-        vel.z = tmp * 10;
-
-        Velocity0 = Velocity;
-
-        Age0 = 0.0f;
+        Age0 = 0;
     }
 }
