@@ -153,6 +153,7 @@ private:
     void loadLights();
 
     GLuint m_textureName;
+    GLuint m_furTexture;
 
 
 };

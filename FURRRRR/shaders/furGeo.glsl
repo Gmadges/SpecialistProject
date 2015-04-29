@@ -1,28 +1,55 @@
 #version 400
 
-uniform mat4 MVP;
+#define FUR_LAYERS 29
 
-layout(triangles, invocations=5) in;
-layout(points, max_vertices = 9) out;
+#define FUR_LENGTH 0.1
+
+uniform mat4 MVP;
+uniform mat4 MV;
+uniform mat3 normalMatrix;
+
+layout(triangles, invocations=1) in;
+//layout(triangle_strip, max_vertices = 9) out;
+layout(points, max_vertices = 87) out;
 
 in vec4 normal[];
+in vec2 v_UV[];
 
-
+out vec3 v_g_normal;
+out vec2 v_g_UV;
+out float v_furStrength;
 
 void main()
 {
-  for(int i = 0; i < 3; i++)
-  { // You used triangles, so it's always 3
+  vec3 norm;
 
-        vec4 tmp = MVP * gl_in[i].gl_Position;
+  const float FUR_DELTA = 1.0 / float(FUR_LAYERS);
 
-        vec4 offset = normal[0];
+  float d = 0.0;
 
-        tmp+=(offset*gl_InvocationID*0.01);
+  for (int furLayer = 0; furLayer < FUR_LAYERS; furLayer++)
+  {
+          d += FUR_DELTA;
 
-        gl_Position = tmp;
-        EmitVertex();
+          for(int i = 0; i < gl_in.length(); i++)
+          {
+                  norm = normalize(normal[i]).xyz;
 
+                  //v_g_normal = norm;
+                  v_g_normal = normalMatrix* norm;
+
+                  v_g_UV = v_UV[i];
+
+                  // If the distance of the layer is getting bigger to the original surface, the layer gets more transparent.
+                  v_furStrength = 1.0 - d;
+
+                  // Displace a layer along the surface normal.
+                  gl_Position = MVP * (gl_in[i].gl_Position + vec4(norm * d * FUR_LENGTH, 0.0));
+                  //gl_Position = MVP * (gl_in[i].gl_Position + vec4(norm * d * FUR_LENGTH, 0.0));
+
+                  EmitVertex();
+          }
+
+          EndPrimitive();
   }
-  EndPrimitive();
 }

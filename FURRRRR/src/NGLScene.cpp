@@ -42,6 +42,7 @@ NGLScene::~NGLScene()
   std::cout<<"Shutting down NGL, removing VAO's and Shaders\n";
 
   glDeleteTextures(1,&m_textureName);
+  glDeleteTextures(1,&m_furTexture);
 
   Init->NGLQuit();
 }
@@ -68,7 +69,7 @@ void NGLScene::loadTexture()
     unsigned int width = 1028;
     unsigned int height = 1028;
     unsigned int index = 0;
-    unsigned int density = 10000;
+    unsigned int density = 100000;
 
     //create pixel array of data set it all to zero
     unsigned char *data = new unsigned char[width*height*4];
@@ -103,8 +104,8 @@ void NGLScene::loadTexture()
     }
 
 
-    glGenTextures(1,&m_textureName);
-    glBindTexture(GL_TEXTURE_2D,m_textureName);
+    glGenTextures(1,&m_furTexture);
+    glBindTexture(GL_TEXTURE_2D,m_furTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
@@ -126,7 +127,6 @@ void NGLScene::loadImageTexture()
       GLimage = QGLWidget::convertToGLFormat(image);
 
       glGenTextures(1,&m_textureName);
-      glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D,m_textureName);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -264,8 +264,10 @@ void NGLScene::initialize()
 
   loadTextureShader();
 
-  loadTexture();
+
+
   //loadImageTexture();
+  loadTexture();
 
   ngl::ShaderLib *shader=ngl::ShaderLib::instance();
 
@@ -348,7 +350,22 @@ void NGLScene::render()
 
     (*shader)["normalShader"]->use();
   //(*shader)["TextureShader"]->use();
+
+  GLuint id = shader->getProgramID("normalShader");
+
+
+  glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,m_textureName);
+  glUniform1i(id, 0);
+
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D,m_furTexture);
+  glUniform1i(id, 1);
+
+
+
+  std::cout<<"tex: "<<m_textureName<<std::endl;
+  std::cout<<"furtex: "<<m_furTexture<<std::endl;
 
 
 
