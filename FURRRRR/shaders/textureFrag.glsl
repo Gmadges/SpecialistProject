@@ -8,5 +8,10 @@ layout (location=0) out vec4 outColour;
 void main ()
 {
  // set the fragment colour to the current texture
- outColour = texture(imageTexture,vertUV);
+    vec4 tmp = texture(imageTexture,vertUV);
+    tmp.a=0.2;
+
+      outColour = tmp;
 }
+
+

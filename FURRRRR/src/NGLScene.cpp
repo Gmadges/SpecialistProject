@@ -69,7 +69,7 @@ void NGLScene::loadTexture()
     unsigned int width = 1028;
     unsigned int height = 1028;
     unsigned int index = 0;
-    unsigned int density = 100000;
+    unsigned int density = 1000000;
 
     //create pixel array of data set it all to zero
     unsigned char *data = new unsigned char[width*height*4];
@@ -348,7 +348,7 @@ void NGLScene::render()
 
   glPointSize(4.0);
   glLineWidth(4.0);
-/*
+
   (*shader)["TextureShader"]->use();
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,m_textureName);
@@ -357,7 +357,7 @@ void NGLScene::render()
 
   prim->draw("ball");
 
-*/
+
   (*shader)["normalShader"]->use();
   glUniform1i(m_imgLocation, 0);
   glActiveTexture(GL_TEXTURE0);
