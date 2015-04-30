@@ -10,7 +10,7 @@ uniform mat3 normalMatrix;
 
 layout(triangles, invocations=1) in;
 //layout(triangle_strip, max_vertices = 9) out;
-layout(points, max_vertices = 87) out;
+layout(triangle_strip, max_vertices = 87) out;
 
 in vec4 normal[];
 in vec2 v_UV[];

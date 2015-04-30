@@ -94,11 +94,11 @@ void NGLScene::loadTexture()
     {
         int pixel = rand() % (height*width)+1;
         //red
-        data[pixel*4]= 0;
+        data[pixel*4]= 255;
         //green
-        data[pixel*4+1]= 200;
+        data[pixel*4+1]= 255;
         //blue
-        data[pixel*4+2]= 0;
+        data[pixel*4+2]= 255;
         //alpha the important one
         data[pixel*4+3]= 255;
     }

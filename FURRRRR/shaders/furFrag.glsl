@@ -25,24 +25,12 @@ void main()
 {
     vec3 light = vec3(200,1,1);
 
-    //FragColour = texture2D(tex, texCoord);
-
-    //vec3 normal = normalize(v_normal);
-
-    //FragColour = vec4(0.2,1,0.2,0.2);
-
     vec3 normal = normalize(v_g_normal);
 
     // Orthogonal fur to light is still illumintated. So shift by one, that only fur targeting away from the light do get darkened.
     float intensity = clamp(dot(normal, light) + 1.0, 0.0, 1.0);
 
-    //float intensity = 0.5;
-
-    float furStrength = clamp(v_furStrength * texture(furStrengthTexture, v_g_UV).r * FUR_STRENGTH_CONTRAST - FUR_STRENGTH_CAP, 0.0, 1.0);
-
-    //float furStrength = 0.1;
-
-
+    float furStrength = clamp(v_furStrength * texture(furStrengthTexture, v_g_UV).g * FUR_STRENGTH_CONTRAST - FUR_STRENGTH_CAP, 0.0, 1.0);
 
     //FragColour = vec4(vec3(0.1, 1, 0.1) * intensity, furStrength);
 
@@ -54,6 +42,10 @@ void main()
         if (FragColour.r == 0 && FragColour.g == 0 && FragColour.b == 0)
         {
              discard;
+        }
+        else if(furStrength == 0)
+        {
+            discard;
         }
     }
 
