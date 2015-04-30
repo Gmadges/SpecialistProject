@@ -121,18 +121,41 @@ void NGLScene::initTestData()
     // in this case create a sort of supertorus distribution of points
     // based on a random point
     ngl::Random *rng=ngl::Random::instance();
-    ngl::Vec3 p;
+
     for(unsigned int i=0; i<maxinstances; ++i)
     {
-      float x = rng->randomNumber(5);
-      float y = rng->randomPositiveNumber(10);
-      float z = rng->randomNumber(5);
-      data[i].pos.set(0,0,0);
-      data[i].vel.set(x,y+10,z);
-      data[i].age = rng->randomPositiveNumber()*100;
+      ngl::Vec3 pos;
+      ngl::Vec3 dst;
+      ngl::Vec3 vel;
+
+      float r = rng->randomPositiveNumber(50);
+      float theta = rng->randomPositiveNumber(360);
+
+      dst.m_x = 200 + r*cos(theta);
+      dst.m_z = -200 + r*sin(theta);
+      dst.m_y = 200.0;
+
+      r = rng->randomPositiveNumber(5);
+      theta = rng->randomPositiveNumber(360);
+
+      pos.m_x = r*cos(theta);
+      pos.m_z = r*sin(theta);
+      pos.m_y = 0.0f;
+
+      vel = dst-pos;
+
+      vel.normalize();
+
+      float mag = rng->randomPositiveNumber(50);
+
+      data[i].pos.set(pos);
+      data[i].vel.set(vel*(mag+100));
+      data[i].age = -rng->randomPositiveNumber(1);
     }
+
+
     // now store this buffer data for later.
-    glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(Particle), data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, maxinstances * sizeof(Particle), data, GL_DYNAMIC_DRAW);
     // attribute 0 is the inPos in our shader
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Particle), 0);
@@ -220,6 +243,7 @@ void NGLScene::initialize()
   // we must call this first before any other GL commands to load and link the
   // gl commands from the lib, if this is not done program will crash
   ngl::NGLInit::instance();
+  ngl::VAOPrimitives *prim=ngl::VAOPrimitives::instance();
 
   glClearColor(0.4f, 0.4f, 0.4f, 1.0f);			   // Grey Background
   // enable depth testing for drawing
@@ -232,21 +256,18 @@ void NGLScene::initialize()
   // Now we will create a basic Camera from the graphics library
   // This is a static camera so it only needs to be set once
   // First create Values for the camera position
-  ngl::Vec3 from(0,1,220);
+  ngl::Vec3 from(0,20,150);
   ngl::Vec3 to(0,0,0);
   ngl::Vec3 up(0,1,0);
 
   m_cam= new ngl::Camera(from,to,up);
   // set the shape using FOV 45 Aspect Ratio based on Width and Height
   // The final two are near and far clipping planes of 0.5 and 10
-  m_cam->setShape(45,(float)720.0/576.0,0.5,150);
-
+  m_cam->setShape(45,(float)720.0/576.0,0.1,500);
 
   initTestData();
   initTransform();
-
   initDrawShader();
-  // create our cube
 
   loadTexture();
 
@@ -255,14 +276,34 @@ void NGLScene::initialize()
   m_text->setScreenSize(width(),height());
   // create the data points
 
-  //createDataPoints();
-
   // as re-size is not explicitly called we need to do this.
   glViewport(0,0,width(),height());
 
+  ngl::ShaderLib *shader=ngl::ShaderLib::instance();
 
-  std::cout<<"buffer1: "<<m_buffer1<<std::endl;
-  std::cout<<"buffer2: "<<m_buffer2<<std::endl;
+  shader->createShaderProgram("basicShader");
+
+  shader->attachShader("basicVertex",ngl::VERTEX);
+  shader->attachShader("basicFragment",ngl::FRAGMENT);
+
+
+  shader->loadShaderSource("basicVertex","shaders/Vertex.glsl");
+  shader->loadShaderSource("basicFragment","shaders/Fragment.glsl");
+
+
+  shader->compileShader("basicVertex");
+  shader->compileShader("basicFragment");
+
+
+  shader->attachShaderToProgram("basicShader","basicVertex");
+  shader->attachShaderToProgram("basicShader","basicFragment");
+
+
+  // link
+  shader->linkProgramObject("basicShader");
+
+  prim->createLineGrid("plane",240,240,40);
+
 }
 
 void NGLScene::loadMatricesToShader()
@@ -312,20 +353,19 @@ void NGLScene::updateParticles()
     // happens here)
 
     GLuint time = (float)m_timer.msecsSinceStartOfDay();
-    GLuint deltaTime = (float)m_timer.msec();
+    GLuint deltaTime = (float)m_updateTimer.elapsed();
 
-    std::cout<<time<<std::endl;
+    std::cout<<"deltaTime: "<<deltaTime<<std::endl;
 
     shader->setRegisteredUniform1f("Time", (float)time);
     shader->setRegisteredUniform1f("DeltaTimeMillis", (float)deltaTime);
 
-    std::cout<<"time: "<<(float)time<<std::endl;
-    std::cout<<"deltaTime: "<<(float)deltaTime<<std::endl;
-
     glDrawArrays(GL_POINTS, 0, maxinstances);
+
     // now signal that we have done with the feedback buffer
     glEndTransformFeedback();
     // and re-enable rasterisation
+    m_updateTimer.restart();
 
     std::swap(m_buffer1, m_buffer2);
 
@@ -393,27 +433,30 @@ void NGLScene::drawParticles()
 
     //glDrawArrays(GL_TRIANGLES, 0, 6, maxinstances);
     glDrawArrays(GL_POINTS,0,maxinstances);
+
+
+
 }
 
 void NGLScene::render()
 {
-  // clear the screen and depth buffer
+        // clear the screen and depth buffer
 
-  //stop this so its doesnt put you in a secret.
-  //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  // Rotation based on the mouse position for our global
-  // transform
-  ngl::Mat4 rotX;
-  ngl::Mat4 rotY;
-  // create the rotation matrices
-  rotX.rotateX(m_spinXFace);
-  rotY.rotateY(m_spinYFace);
-  // multiply the rotations
-  m_mouseGlobalTX=rotY*rotX;
-  // add the translations
-  m_mouseGlobalTX.m_m[3][0] = m_modelPos.m_x;
-  m_mouseGlobalTX.m_m[3][1] = m_modelPos.m_y;
-  m_mouseGlobalTX.m_m[3][2] = m_modelPos.m_z;
+      //stop this so its doesnt put you in a secret.
+      //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      // Rotation based on the mouse position for our global
+      // transform
+      ngl::Mat4 rotX;
+      ngl::Mat4 rotY;
+      // create the rotation matrices
+      rotX.rotateX(m_spinXFace);
+      rotY.rotateY(m_spinYFace);
+      // multiply the rotations
+      m_mouseGlobalTX=rotY*rotX;
+      // add the translations
+      m_mouseGlobalTX.m_m[3][0] = m_modelPos.m_x;
+      m_mouseGlobalTX.m_m[3][1] = m_modelPos.m_y;
+      m_mouseGlobalTX.m_m[3][2] = m_modelPos.m_z;
 
 
   if(m_frames%2 == 1)
@@ -423,10 +466,19 @@ void NGLScene::render()
   else
   {
         drawParticles();
+        ngl::ShaderLib *shader=ngl::ShaderLib::instance();
+        ngl::VAOPrimitives *prim=ngl::VAOPrimitives::instance();
+
+        (*shader)["basicShader"]->use();
+
+        loadMatricesToShader();
+
+        prim->draw("plane");
   }
 
 
-  //std::cout<<"buffer1: "<<m_buffer1<<std::endl;
+
+
 
   ++m_frames;
   glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);

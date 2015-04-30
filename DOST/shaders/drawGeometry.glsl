@@ -9,6 +9,7 @@ uniform vec3 camPosition;
 
 out vec2 texCoord;
 
+
 void main()
 {
     //get the position of the point.
@@ -47,6 +48,7 @@ void main()
     EmitVertex();
 
     EndPrimitive();
+
 
 }
 

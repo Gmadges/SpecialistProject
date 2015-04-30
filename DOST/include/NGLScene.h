@@ -214,6 +214,8 @@ private:
     GLuint m_buffer1;
     GLuint m_buffer2;
 
+    QTime m_updateTimer;
+
 
 };
 

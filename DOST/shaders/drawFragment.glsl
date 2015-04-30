@@ -1,7 +1,8 @@
-#version 330 core
+#version 410 core
 // this is a pointer to the current 2D texture object
 uniform sampler2D tex;
-// the vertex UV
+
+layout (location = 2) in float Age;
 
 in vec2 texCoord;
 // the final fragment colour
@@ -12,10 +13,13 @@ void main()
 {
     //FragColour = texture2D(tex, texCoord);
 
-    FragColour = vec4(1,1,1,0.2);
+    //float alpha = v_g_age/1.0f;
+    //float alpha = 0.5;
 
-    if (FragColour.r == 0 && FragColour.g == 0 && FragColour.b == 0)
-    {
-        discard;
-    }
+    FragColour = vec4(1,1,1, 0.5);
+
+    //if (FragColour.r == 0 && FragColour.g == 0 && FragColour.b == 0)
+    //{
+    //    discard;
+    //}
 }

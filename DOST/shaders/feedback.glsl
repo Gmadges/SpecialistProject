@@ -19,22 +19,33 @@ float rand(vec2 n)
 
 void main()
 {
-    if(Age <= 100)
+    float DeltaTime = DeltaTimeMillis/1000;
+
+    if(Age <= 0)
     {
-        Position0 = Position + Velocity;
+        Age0 = Age + DeltaTime;
 
-        float y = rand(Position.xy);
+        Position0 = Position;
 
-        Velocity0 = Velocity - vec3(0,y,0);
+        Velocity0 = Velocity;
+    }
+    else if(Age < 2)
+    {
+        vec3 newVelocity = Velocity - vec3(0,2,0);
 
-        Age0 = Age + 0.1;
+        Velocity0 = newVelocity;
+
+        Position0 = Position + (newVelocity*DeltaTime);
+
+        Age0 = Age + DeltaTime;
     }
     else
     {
-        Position0 = vec3(0.0, 0.0, 0.0);
+        Position0 = Position;
 
-        Velocity0 = vec3(rand(Position.xy),(rand(Position.zx)*5)+5,rand(Position.yz));
+        Velocity0 = Velocity;
 
-        Age0 = 0;
+        Age0 = Age;
     }
+
 }
