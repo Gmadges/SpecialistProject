@@ -155,6 +155,9 @@ private:
     GLuint m_textureName;
     GLuint m_furTexture;
 
+    GLint m_furLocation;
+    GLint m_imgLocation;
+
 
 };
 

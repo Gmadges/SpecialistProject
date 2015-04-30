@@ -235,6 +235,9 @@ void NGLScene::loadFurShader()
 
     shader->linkProgramObject("normalShader");
     shader->use("normalShader");
+
+    shader->registerUniform("normalShader", "imageTexture");
+    shader->registerUniform("normalShader", "furStrengthTexture");
 }
 
 
@@ -264,12 +267,14 @@ void NGLScene::initialize()
 
   loadTextureShader();
 
-
-
-  //loadImageTexture();
+  loadImageTexture();
   loadTexture();
 
   ngl::ShaderLib *shader=ngl::ShaderLib::instance();
+
+
+  m_furLocation = glGetUniformLocation(shader->getProgramID("normalShader"), "furStrengthTexture");
+  m_imgLocation = glGetUniformLocation(shader->getProgramID("normalShader"), "imageTexture");
 
   // now pass the modelView and projection values to the shader
   shader->setShaderParam1f("normalSize",0.1);
@@ -351,16 +356,16 @@ void NGLScene::render()
     (*shader)["normalShader"]->use();
   //(*shader)["TextureShader"]->use();
 
-  GLuint id = shader->getProgramID("normalShader");
+  //GLuint id = shader->getProgramID("normalShader");
 
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,m_textureName);
-  glUniform1i(id, 0);
+  glUniform1i(m_imgLocation, 0);
 
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D,m_furTexture);
-  glUniform1i(id, 1);
+  glUniform1i(m_furLocation, 1);
 
 
 

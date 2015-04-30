@@ -7,9 +7,9 @@
 #define FUR_STRENGTH_CAP 0.3
 
 // this is a pointer to the current 2D texture object
-uniform sampler2D tex;
+uniform sampler2D furStrengthTexture;
 
-uniform sampler2D furTex;
+uniform sampler2D imageTexture;
 // the vertex UV
 
 in vec3 v_g_normal;
@@ -38,7 +38,7 @@ void main()
 
     //float intensity = 0.5;
 
-    float furStrength = clamp(v_furStrength * texture(furTex, v_g_UV).r * FUR_STRENGTH_CONTRAST - FUR_STRENGTH_CAP, 0.0, 1.0);
+    float furStrength = clamp(v_furStrength * texture(furStrengthTexture, v_g_UV).r * FUR_STRENGTH_CONTRAST - FUR_STRENGTH_CAP, 0.0, 1.0);
 
     //float furStrength = 0.1;
 
@@ -49,7 +49,7 @@ void main()
 
     if(intensity != 0.0)
     {
-        FragColour = vec4(texture(furTex, v_g_UV).rgb * intensity, furStrength);
+        FragColour = vec4(texture(imageTexture, v_g_UV).rgb * intensity, furStrength);
 
         if (FragColour.r == 0 && FragColour.g == 0 && FragColour.b == 0)
         {
@@ -59,7 +59,7 @@ void main()
 
     else
     {
-        FragColour = vec4(texture(furTex, v_g_UV).rgb * 1, furStrength);
+        FragColour = vec4(texture(furStrengthTexture, v_g_UV).rgb * 1, furStrength);
     }
 
 }
