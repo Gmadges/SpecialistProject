@@ -21,6 +21,9 @@ void main()
 {
     float DeltaTime = DeltaTimeMillis/1000;
 
+    //vortice centre
+    vec3 vortice = vec3(50, 50, -50);
+
     if(Age <= 0)
     {
         Age0 = Age + DeltaTime;
@@ -29,9 +32,22 @@ void main()
 
         Velocity0 = Velocity;
     }
-    else if(Age < 2)
+    else if(Age < 3)
     {
-        vec3 newVelocity = Velocity - vec3(0,2,0);
+        vec3 newVelocity = Velocity - vec3(0,1,0);
+
+        vec3 r = Position - vortice;
+
+        vec3 angularVelocity;
+        angularVelocity.x=-r.z*1;
+        angularVelocity.z= r.x*1;
+        angularVelocity.y= r.y*0.5;
+
+        vec3 v = cross(angularVelocity, r);
+
+        float factor = 1/(1+(r.x*r.x+r.y*r.y) / 0.5 );
+
+        newVelocity+=(v*factor);
 
         Velocity0 = newVelocity;
 

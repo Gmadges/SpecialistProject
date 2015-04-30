@@ -150,7 +150,7 @@ void NGLScene::initTestData()
 
       data[i].pos.set(pos);
       data[i].vel.set(vel*(mag+100));
-      data[i].age = -rng->randomPositiveNumber(1);
+      data[i].age = -rng->randomPositiveNumber(2);
     }
 
 
