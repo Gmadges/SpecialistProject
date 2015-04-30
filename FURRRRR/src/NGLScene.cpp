@@ -120,7 +120,7 @@ void NGLScene::loadImageTexture()
 {
   QImage image;
 
-  bool loaded=image.load("texture/tennisball3.jpg", "JPG");
+  bool loaded=image.load("texture/TennisBall.jpg", "JPG");
   if(loaded == true)
   {
       QImage GLimage;
@@ -238,6 +238,7 @@ void NGLScene::loadFurShader()
 
     shader->registerUniform("normalShader", "imageTexture");
     shader->registerUniform("normalShader", "furStrengthTexture");
+
 }
 
 
@@ -276,13 +277,6 @@ void NGLScene::initialize()
   m_furLocation = glGetUniformLocation(shader->getProgramID("normalShader"), "furStrengthTexture");
   m_imgLocation = glGetUniformLocation(shader->getProgramID("normalShader"), "imageTexture");
 
-  // now pass the modelView and projection values to the shader
-  shader->setShaderParam1f("normalSize",0.1);
-  shader->setShaderParam4f("vertNormalColour",1,1,0,1);
-  shader->setShaderParam4f("faceNormalColour",1,0,0,1);
-
-  shader->setShaderParam1i("drawFaceNormals",true);
-  shader->setShaderParam1i("drawVertexNormals",true);
 
   glEnable(GL_DEPTH_TEST); // for removal of hidden surfaces
 
@@ -327,6 +321,8 @@ void NGLScene::render()
 {
   // clear the screen and depth buffer
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   // Rotation based on the mouse position for our global transform
    ngl::Transformation trans;
    ngl::Mat4 rotX;
@@ -353,11 +349,16 @@ void NGLScene::render()
   glPointSize(4.0);
   glLineWidth(4.0);
 
-    (*shader)["normalShader"]->use();
-  //(*shader)["TextureShader"]->use();
+  (*shader)["TextureShader"]->use();
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D,m_textureName);
 
-  //GLuint id = shader->getProgramID("normalShader");
+  loadMatricesToShader();
 
+  prim->draw("ball");
+
+
+  (*shader)["normalShader"]->use();
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,m_textureName);
@@ -367,16 +368,10 @@ void NGLScene::render()
   glBindTexture(GL_TEXTURE_2D,m_furTexture);
   glUniform1i(m_furLocation, 1);
 
-
-
-  std::cout<<"tex: "<<m_textureName<<std::endl;
-  std::cout<<"furtex: "<<m_furTexture<<std::endl;
-
-
-
   loadMatricesToShader();
 
   prim->draw("ball");
+
 }
 
 //----------------------------------------------------------------------------------------------------------------------
