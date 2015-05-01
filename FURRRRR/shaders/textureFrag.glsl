@@ -9,7 +9,7 @@ void main ()
 {
  // set the fragment colour to the current texture
     vec4 tmp = texture(imageTexture,vertUV);
-    tmp.a=0.2;
+    tmp.a=1;
 
       outColour = tmp;
 }

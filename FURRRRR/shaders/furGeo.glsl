@@ -2,7 +2,7 @@
 
 #define FUR_LAYERS 29
 
-#define FUR_LENGTH 0.1
+#define FUR_LENGTH 0.05
 
 uniform mat4 MVP;
 uniform mat4 MV;

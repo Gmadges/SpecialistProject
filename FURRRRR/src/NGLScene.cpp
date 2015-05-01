@@ -349,7 +349,7 @@ void NGLScene::render()
   glPointSize(4.0);
   glLineWidth(4.0);
 
- /* (*shader)["TextureShader"]->use();
+  (*shader)["TextureShader"]->use();
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,m_textureName);
 
@@ -357,7 +357,7 @@ void NGLScene::render()
 
   prim->draw("ball");
 
-*/
+
   (*shader)["normalShader"]->use();
   glUniform1i(m_imgLocation, 0);
   glActiveTexture(GL_TEXTURE0);

@@ -34,9 +34,20 @@ void main()
 
     float furStrength = clamp(v_furStrength * texture(furStrengthTexture, v_g_UV).g * FUR_STRENGTH_CONTRAST - FUR_STRENGTH_CAP, 0.0, 1.0);
 
+    if(furStrength < 0.2)
+    {
+        discard;
+    }
+
+
     //FragColour = vec4(vec3(0.1, 1, 0.1) * intensity, furStrength);
 
 
     FragColour = vec4(texture(imageTexture, v_g_UV).rgb * intensity, furStrength);
+
+    if(FragColour.r > 0.5 && FragColour.g > 0.5 && FragColour.b > 0.5)
+    {
+        discard;
+    }
 
 }
