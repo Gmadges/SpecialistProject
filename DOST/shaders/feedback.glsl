@@ -17,12 +17,42 @@ float rand(vec2 n)
      fract(sin(dot(n.xy, vec2(12.9898, 78.233)))* 43758.5453);
 }
 
+mat4 rotationMatrix(vec3 axis, float angle)
+{
+    axis = normalize(axis);
+    float s = sin(angle);
+    float c = cos(angle);
+    float oc = 1.0 - c;
+
+    return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
+                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
+                0.0,                                0.0,                                0.0,                                1.0);
+}
+
+vec3 vortex(vec3 vortPos, vec3 pos, vec3 vel)
+{
+    vec3 r = Position - vortPos;
+
+    vec3 angularVelocity =  (cross(r, vel)) /
+                            (length(r)*length(r));
+
+
+    angularVelocity*=10;
+
+    vec3 v = cross(angularVelocity, r);
+
+    float factor = 1/(1+(r.x*r.x+r.z*r.z) / 1);
+
+    return v*factor;
+}
+
+
 void main()
 {
     float DeltaTime = DeltaTimeMillis/1000;
 
-    //vortice centre
-    vec3 vortice = vec3(50, 50, -50);
+
 
     if(Age <= 0)
     {
@@ -34,20 +64,16 @@ void main()
     }
     else if(Age < 3)
     {
-        vec3 newVelocity = Velocity - vec3(0,1,0);
+        vec3 newVelocity = Velocity - vec3(0,2,0);
 
-        vec3 r = Position - vortice;
+        newVelocity+=vortex(vec3(10,5,-10), Position, newVelocity);
 
-        vec3 angularVelocity;
-        angularVelocity.x=-r.z*1;
-        angularVelocity.z= r.x*1;
-        angularVelocity.y= r.y*0.5;
+        newVelocity+=vortex(vec3(10,10, 40), Position, newVelocity);
 
-        vec3 v = cross(angularVelocity, r);
+        newVelocity+=vortex(vec3(-23,20, 10), Position, newVelocity);
 
-        float factor = 1/(1+(r.x*r.x+r.y*r.y) / 0.5 );
+        newVelocity+=vortex(vec3(-10,-5, -13), Position, newVelocity);
 
-        newVelocity+=(v*factor);
 
         Velocity0 = newVelocity;
 

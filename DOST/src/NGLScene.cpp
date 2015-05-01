@@ -33,7 +33,7 @@ const static float ZOOM=5.0;
 //----------------------------------------------------------------------------------------------------------------------
 /// num instances
 //----------------------------------------------------------------------------------------------------------------------
-const static unsigned int maxinstances=10000;
+const static unsigned int maxinstances=1000000;
 
 
 NGLScene::NGLScene(QWindow *_parent) : OpenGLWindow(_parent)
@@ -131,9 +131,9 @@ void NGLScene::initTestData()
       float r = rng->randomPositiveNumber(50);
       float theta = rng->randomPositiveNumber(360);
 
-      dst.m_x = 200 + r*cos(theta);
-      dst.m_z = -200 + r*sin(theta);
-      dst.m_y = 200.0;
+      dst.m_x = 0 + r*cos(theta);
+      dst.m_z = -0 + r*sin(theta);
+      dst.m_y = 300.0;
 
       r = rng->randomPositiveNumber(5);
       theta = rng->randomPositiveNumber(360);
@@ -149,9 +149,10 @@ void NGLScene::initTestData()
       float mag = rng->randomPositiveNumber(50);
 
       data[i].pos.set(pos);
-      data[i].vel.set(vel*(mag+100));
+      data[i].vel.set(vel*75+mag);
       data[i].age = -rng->randomPositiveNumber(2);
     }
+
 
 
     // now store this buffer data for later.
@@ -256,7 +257,7 @@ void NGLScene::initialize()
   // Now we will create a basic Camera from the graphics library
   // This is a static camera so it only needs to be set once
   // First create Values for the camera position
-  ngl::Vec3 from(0,20,150);
+  ngl::Vec3 from(0,300,50);
   ngl::Vec3 to(0,0,0);
   ngl::Vec3 up(0,1,0);
 
