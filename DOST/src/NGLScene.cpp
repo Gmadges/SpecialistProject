@@ -12,7 +12,9 @@
 #include <ngl/Random.h>
 
 #include<QGLWidget>
-#include<glm/matrix.hpp>
+#include<glm/glm.hpp>
+
+#include<libnoise/noise.h>
 
 struct Particle
 {
@@ -92,6 +94,104 @@ void NGLScene::loadTexture()
   }
 }
 
+double doubleClamp(double val, double max, double min)
+{
+    if(val > max)
+    {
+        return max;
+    }
+    else if(val < min)
+    {
+        return min;
+    }
+
+    return val;
+}
+
+void NGLScene::create3DNoiseTexture()
+{
+    noise::module::Perlin Perlin1;
+    noise::module::Perlin Perlin2;
+    noise::module::Perlin Perlin3;
+
+    static unsigned int seed = 23234;
+    unsigned int index = 0;
+
+    Perlin1.SetOctaveCount(1);
+    Perlin1.SetSeed(seed);
+
+    Perlin2.SetOctaveCount(3);
+    Perlin2.SetSeed(seed);
+
+    Perlin3.SetOctaveCount(6);
+    Perlin3.SetSeed(seed);
+
+    unsigned int width = 128;
+    unsigned int height = 128;
+    unsigned int depth = 128;
+
+    //create pixel array of data set it all to zero
+    unsigned char *data = new unsigned char[width*height*depth*3];
+
+    double octave1 = 0;
+    double octave2 = 0;
+    double octave3 = 0;
+
+
+    unsigned char tmp1 = 0;
+    unsigned char tmp2 = 0;
+    unsigned char tmp3 = 0;
+
+    for(unsigned int y=0; y < height; ++y)
+    {
+        for( unsigned int x = 0; x < width; ++x)
+        {
+            for( unsigned int z = 0; z < depth; ++z)
+            {
+
+                octave1 = Perlin1.GetValue((double)x/width, (double)y/height, (double)z/depth);
+                octave2 = Perlin2.GetValue((double)x/width, (double)y/height, (double)z/depth);
+                octave3 = Perlin3.GetValue((double)x/width, (double)y/height, (double)z/depth);
+
+                octave1 = doubleClamp(octave1, 1.0, -1.0);
+                octave2 = doubleClamp(octave2, 1.0, -1.0);
+                octave3 = doubleClamp(octave3, 1.0, -1.0);
+
+                tmp1 = ((octave1)+1)*127;
+                tmp2 = ((octave2)+1)*127;
+                tmp3 = ((octave3)+1)*127;
+
+                //red
+                data[index++]= tmp1;
+                //green
+                data[index++]= tmp2;
+                //blue
+                data[index++]= tmp3;
+            }
+        }
+    }
+
+
+    glGenTextures(1,&m_noiseTexture);
+    glBindTexture(GL_TEXTURE_3D,m_noiseTexture);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glTexImage3D(GL_TEXTURE_3D,
+                 0,
+                 GL_RGB,
+                 width,
+                 height,
+                 depth,
+                 0,
+                 GL_RGB,
+                 GL_UNSIGNED_BYTE,
+                 data);
+}
+
 void NGLScene::resizeEvent(QResizeEvent *_event )
 {
   if(isExposed())
@@ -128,11 +228,11 @@ void NGLScene::initTestData()
       ngl::Vec3 dst;
       ngl::Vec3 vel;
 
-      float r = rng->randomPositiveNumber(50);
+      float r = rng->randomPositiveNumber(100);
       float theta = rng->randomPositiveNumber(360);
 
-      dst.m_x = 0 + r*cos(theta);
-      dst.m_z = -0 + r*sin(theta);
+      dst.m_x = 50 + r*cos(theta);
+      dst.m_z = 50 + r*sin(theta);
       dst.m_y = 300.0;
 
       r = rng->randomPositiveNumber(5);
@@ -146,13 +246,12 @@ void NGLScene::initTestData()
 
       vel.normalize();
 
-      float mag = rng->randomPositiveNumber(50);
+      float mag = rng->randomPositiveNumber(200);
 
       data[i].pos.set(pos);
-      data[i].vel.set(vel*75+mag);
+      data[i].vel.set(vel*500+mag);
       data[i].age = -rng->randomPositiveNumber(2);
     }
-
 
 
     // now store this buffer data for later.
@@ -257,7 +356,7 @@ void NGLScene::initialize()
   // Now we will create a basic Camera from the graphics library
   // This is a static camera so it only needs to be set once
   // First create Values for the camera position
-  ngl::Vec3 from(0,300,50);
+  ngl::Vec3 from(0,1000,150);
   ngl::Vec3 to(0,0,0);
   ngl::Vec3 up(0,1,0);
 
@@ -269,6 +368,8 @@ void NGLScene::initialize()
   initTestData();
   initTransform();
   initDrawShader();
+
+  create3DNoiseTexture();
 
   loadTexture();
 
@@ -361,6 +462,10 @@ void NGLScene::updateParticles()
     shader->setRegisteredUniform1f("Time", (float)time);
     shader->setRegisteredUniform1f("DeltaTimeMillis", (float)deltaTime);
 
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D,m_noiseTexture);
+
     glDrawArrays(GL_POINTS, 0, maxinstances);
 
     // now signal that we have done with the feedback buffer
@@ -425,8 +530,6 @@ void NGLScene::drawParticles()
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Particle), (const GLvoid*)24);
 
-    //glBindBuffer(GL_ARRAY_BUFFER, m_dataID);
-    //glVertexPointer(3, GL_FLOAT, 0, 0);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D,m_textureName);
@@ -476,10 +579,6 @@ void NGLScene::render()
 
         prim->draw("plane");
   }
-
-
-
-
 
   ++m_frames;
   glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);

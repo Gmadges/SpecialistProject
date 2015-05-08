@@ -1,7 +1,7 @@
 #version 330 core
 
 // The higher the value, the bigger the contrast between the fur length.
-#define FUR_STRENGTH_CONTRAST 2.0
+#define FUR_STRENGTH_CONTRAST 1.5
 
 // The higher the value, the less fur.
 #define FUR_STRENGTH_CAP 0.3
@@ -32,22 +32,24 @@ void main()
 
     float intensity = 1.0f;
 
-    float furStrength = clamp(v_furStrength * texture(furStrengthTexture, v_g_UV).g * FUR_STRENGTH_CONTRAST - FUR_STRENGTH_CAP, 0.0, 1.0);
+    float furStrength = clamp(v_furStrength * texture(furStrengthTexture, v_g_UV).g * FUR_STRENGTH_CONTRAST - FUR_STRENGTH_CAP,
+                              0.0,
+                              1.0);
 
-    if(furStrength < 0.2)
+    if(furStrength < 0.3)
     {
         discard;
     }
 
+    //apply darker shades to bottom layers
+    vec4 colour = vec4(texture(imageTexture, v_g_UV).rgb * intensity, furStrength);
 
-    //FragColour = vec4(vec3(0.1, 1, 0.1) * intensity, furStrength);
-
-
-    FragColour = vec4(texture(imageTexture, v_g_UV).rgb * intensity, furStrength);
+    FragColour = colour;
 
     if(FragColour.r > 0.5 && FragColour.g > 0.5 && FragColour.b > 0.5)
     {
         discard;
     }
+
 
 }

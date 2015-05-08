@@ -145,6 +145,7 @@ private:
 
     void loadTexture();
     void loadImageTexture();
+    void loadCourtTexture();
 
     void loadTextureShader();
     void loadFurShader();
@@ -154,6 +155,8 @@ private:
 
     GLuint m_textureName;
     GLuint m_furTexture;
+
+    GLuint m_courtTexture;
 
     GLint m_furLocation;
     GLint m_imgLocation;

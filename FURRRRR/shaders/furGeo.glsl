@@ -1,6 +1,6 @@
 #version 400
 
-#define FUR_LAYERS 29
+#define FUR_LAYERS 50
 
 #define FUR_LENGTH 0.05
 
@@ -35,7 +35,6 @@ void main()
           {
                   norm = normalize(normal[i]).xyz;
 
-                  //v_g_normal = norm;
                   v_g_normal = normalMatrix* norm;
 
                   v_g_UV = v_UV[i];
@@ -45,7 +44,6 @@ void main()
 
                   // Displace a layer along the surface normal.
                   gl_Position = MVP * (gl_in[i].gl_Position + vec4(norm * d * FUR_LENGTH, 0.0));
-                  //gl_Position = MVP * (gl_in[i].gl_Position + vec4(norm * d * FUR_LENGTH, 0.0));
 
                   EmitVertex();
           }

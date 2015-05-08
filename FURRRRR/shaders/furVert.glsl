@@ -11,8 +11,6 @@ uniform mat4 MVP;
 void main()
 {
     gl_Position = vec4(inPos, 1.0);
-
     normal = vec4(inNormal, 0);
-
     v_UV = inUV;
 }

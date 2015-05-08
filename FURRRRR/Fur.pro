@@ -55,9 +55,9 @@ linux-g++-64:QMAKE_CXXFLAGS +=  -march=native
 # define the _DEBUG flag for the graphics lib
 DEFINES +=NGL_DEBUG
 
-unix:LIBS += -L/usr/local/lib
+unix:LIBS += -L/usr/local/lib -L/usr/include/
 # add the ngl lib
-unix:LIBS +=  -L/$(HOME)/NGL/lib -l NGL
+unix:LIBS +=  -L/$(HOME)/NGL/lib -l NGL -lnoise
 
 # now if we are under unix and not on a Mac (i.e. linux)
 linux-*{

@@ -12,6 +12,7 @@
 
 #include <QGLWidget>
 
+#include<libnoise/noise.h>
 
 //----------------------------------------------------------------------------------------------------------------------
 /// @brief the increment for x/y translation with mouse movement
@@ -29,7 +30,7 @@ NGLScene::NGLScene(QWindow *_parent) : OpenGLWindow(_parent)
   // mouse rotation values set to 0
   m_spinXFace=0;
   m_spinYFace=0;
-  setTitle("Simple Geometry Shader");
+  setTitle("Simple Fuir shader");
   m_normalSize=0.1;
   m_modelName="cylinder";
 
@@ -63,6 +64,7 @@ void NGLScene::resizeEvent(QResizeEvent *_event )
 
 void NGLScene::loadTexture()
 {
+/*
     static unsigned int seed = 23234;
     srand(seed);
 
@@ -102,22 +104,37 @@ void NGLScene::loadTexture()
         //alpha the important one
         data[pixel*4+3]= 255;
     }
+*/
+    QImage image;
 
+    //bool loaded=image.load("texture/tennisTexture.jpg", "JPG");
+    bool loaded=image.load("texture/noise.png", "PNG");
+    if(loaded == true)
+    {
+        QImage GLimage;
+        GLimage = QGLWidget::convertToGLFormat(image);
 
-    glGenTextures(1,&m_furTexture);
-    glBindTexture(GL_TEXTURE_2D,m_furTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glGenTextures(1,&m_furTexture);
+        glBindTexture(GL_TEXTURE_2D,m_furTexture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height,0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    //glGenerateMipmap(GL_TEXTURE_2D); //  Allocate the mipmaps
-
-    delete [] data;
-
+        glTexImage2D(GL_TEXTURE_2D,
+                     0,
+                     GL_RGBA,
+                     GLimage.width(),
+                     GLimage.height(),
+                     0,
+                     GL_RGBA,
+                     GL_UNSIGNED_BYTE,
+                     GLimage.bits()
+                     );
+    }
 }
 
 void NGLScene::loadImageTexture()
 {
+  /*
   QImage image;
 
   bool loaded=image.load("texture/TennisBall.jpg", "JPG");
@@ -128,6 +145,95 @@ void NGLScene::loadImageTexture()
 
       glGenTextures(1,&m_textureName);
       glBindTexture(GL_TEXTURE_2D,m_textureName);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+      glTexImage2D(GL_TEXTURE_2D,
+                   0,
+                   GL_RGBA,
+                   GLimage.width(),
+                   GLimage.height(),
+                   0,
+                   GL_RGBA,
+                   GL_UNSIGNED_BYTE,
+                   GLimage.bits()
+                   );
+  }
+  */
+    noise::module::Perlin myModule;
+
+    static unsigned int seed = 23234;
+    unsigned int index = 0;
+
+    myModule.SetOctaveCount(20);
+    myModule.SetSeed(seed);
+
+    unsigned int width = 500;
+    unsigned int height = 500;
+
+    double value = myModule.GetValue (14.50, 20.25, 75.75);
+    std::cout << value << std::endl;
+
+    //create pixel array of data set it all to zero
+    unsigned char *data = new unsigned char[width*height*4];
+
+    for(unsigned int y=0; y < height; ++y)
+    {
+        for( unsigned int x = 0; x < width; ++x)
+        {
+            double value = myModule.GetValue((double)x/width, 0.2, (double)y/height);
+
+            if(value > 1.0)
+            {
+                value = 1.0;
+            }
+            else if(value < -1.0)
+            {
+                value = -1.0;
+            }
+
+            unsigned char tmp = ((value)+1)*126;
+
+            //red
+            data[index++]= tmp;
+            //green
+            data[index++]= tmp;
+            //blue
+            data[index++]= tmp;
+            //alpha the important one
+            data[index++]= 255;
+        }
+    }
+
+    glGenTextures(1,&m_textureName);
+    glBindTexture(GL_TEXTURE_2D,m_textureName);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_RGBA,
+                 width,
+                 height,
+                 0,
+                 GL_RGBA,
+                 GL_UNSIGNED_BYTE,
+                 data
+                 );
+}
+
+void NGLScene::loadCourtTexture()
+{
+  QImage image;
+
+  bool loaded=image.load("texture/tennis-court.jpg", "JPG");
+  if(loaded == true)
+  {
+      QImage GLimage;
+      GLimage = QGLWidget::convertToGLFormat(image);
+
+      glGenTextures(1,&m_courtTexture);
+      glBindTexture(GL_TEXTURE_2D,m_courtTexture);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
@@ -268,6 +374,8 @@ void NGLScene::initialize()
 
   loadTextureShader();
 
+  loadCourtTexture();
+
   loadImageTexture();
   loadTexture();
 
@@ -282,6 +390,7 @@ void NGLScene::initialize()
 
   ngl::VAOPrimitives *prim=ngl::VAOPrimitives::instance();
   prim->createSphere("ball",1.0,50);
+  prim->createTrianglePlane("court", 36, 78, 50, 50, 50);
 
   // as re-size is not explicitly called we need to do this.
   glViewport(0,0,width(),height());
@@ -340,12 +449,6 @@ void NGLScene::render()
   ngl::ShaderLib *shader=ngl::ShaderLib::instance();
   ngl::VAOPrimitives *prim=ngl::VAOPrimitives::instance();
 
-  //(*shader)["FurShader"]->use();
-  //shader->setShaderParam1f("normalSize",m_normalSize);
-  //loadMatricesToNormalShader();
-
-  //prim->draw("ball");
-
   glPointSize(4.0);
   glLineWidth(4.0);
 
@@ -356,8 +459,9 @@ void NGLScene::render()
   loadMatricesToShader();
 
   prim->draw("ball");
+  //prim->draw("cube");
 
-
+/*
   (*shader)["normalShader"]->use();
   glUniform1i(m_imgLocation, 0);
   glActiveTexture(GL_TEXTURE0);
@@ -372,6 +476,19 @@ void NGLScene::render()
 
   prim->draw("ball");
 
+  glUniform1i(m_imgLocation, 0);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, m_courtTexture);
+  glUniform1i(m_imgLocation, 0);
+
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D,m_textureName);
+  glUniform1i(m_furLocation, 1);
+
+  loadMatricesToShader();
+
+  prim->draw("court");
+*/
 }
 
 //----------------------------------------------------------------------------------------------------------------------

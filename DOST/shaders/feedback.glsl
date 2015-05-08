@@ -11,23 +11,13 @@ out float Age0;
 uniform float DeltaTimeMillis;
 uniform float Time;
 
+uniform sampler3D Sampler;
+
+
 float rand(vec2 n)
 {
   return 0.5 + 0.5 *
      fract(sin(dot(n.xy, vec2(12.9898, 78.233)))* 43758.5453);
-}
-
-mat4 rotationMatrix(vec3 axis, float angle)
-{
-    axis = normalize(axis);
-    float s = sin(angle);
-    float c = cos(angle);
-    float oc = 1.0 - c;
-
-    return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
-                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
-                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
-                0.0,                                0.0,                                0.0,                                1.0);
 }
 
 vec3 vortex(vec3 vortPos, vec3 pos, vec3 vel)
@@ -47,12 +37,71 @@ vec3 vortex(vec3 vortPos, vec3 pos, vec3 vel)
     return v*factor;
 }
 
+vec3 SampleVelocity(vec3 p)
+{
+    vec3 tc;
+    vec3 Extent = vec3(1, 1, 1);
+
+    tc.x = (p.x + Extent.x) / (2 * Extent.x);
+
+    tc.y = (p.y + Extent.y) / (2 * Extent.y);
+
+    tc.z = (p.z + Extent.z) / (2 * Extent.z);
+
+    return texture(Sampler, tc).xyz;
+}
+
+vec3 ComputeCurl(vec3 P)
+{
+  float eps = 0.1;
+
+  float n1,n2,a,b;
+
+  vec3 curl;
+
+  n1 = texture(Sampler, vec3(P.x,P.y+eps,P.z), 1).b;
+  n2 = texture(Sampler, vec3(P.x,P.y-eps,P.z), 1).b;
+
+  a = (n1-n2)/(2*eps);
+
+  n1 = texture(Sampler,vec3(P.x,P.y,P.z+eps), 1).b;
+  n2 = texture(Sampler,vec3(P.x,P.y,P.z-eps), 1).b;
+
+  b = (n1 - n2) / (2 * eps);
+
+  curl.x = a-b;
+
+  n1 = texture(Sampler, vec3(P.x,P.y,P.z+eps), 1).b;
+  n2 = texture(Sampler, vec3(P.x,P.y,P.z-eps), 1).b;
+
+  a = (n1-n2)/(2*eps);
+
+  n1 = texture(Sampler, vec3(P.x+eps,P.y,P.z), 1).b;
+  n2 = texture(Sampler, vec3(P.x+eps,P.y,P.z), 1).b;
+
+  b = (n1 - n2) / (2 * eps);
+
+  curl.y = a-b;
+
+  n1 = texture(Sampler, vec3(P.x+eps,P.y,P.z), 1).b;
+  n2 = texture(Sampler, vec3(P.x-eps,P.y,P.z), 1).b;
+
+  a = (n1 - n2) / (2 * eps);
+
+  n1 = texture(Sampler, vec3(P.x,P.y+eps,P.z), 1).r;
+  n2 = texture(Sampler, vec3(P.x,P.y-eps,P.z), 1).r;
+
+  b = (n1-n2)/(2*eps);
+
+  curl.z = a-b;
+
+  return curl;
+}
+
 
 void main()
 {
     float DeltaTime = DeltaTimeMillis/1000;
-
-
 
     if(Age <= 0)
     {
@@ -62,20 +111,14 @@ void main()
 
         Velocity0 = Velocity;
     }
-    else if(Age < 3)
+    else if(Age < 5)
     {
-        vec3 newVelocity = Velocity - vec3(0,2,0);
+        vec3 newVelocity = Velocity + vec3(0,0,0);
 
-        newVelocity+=vortex(vec3(10,5,-10), Position, newVelocity);
+        newVelocity += -Velocity*0.05;
 
-        newVelocity+=vortex(vec3(10,10, 40), Position, newVelocity);
-
-        newVelocity+=vortex(vec3(-23,20, 10), Position, newVelocity);
-
-        newVelocity+=vortex(vec3(-10,-5, -13), Position, newVelocity);
-
-
-        Velocity0 = newVelocity;
+        Velocity0 = newVelocity += ComputeCurl(normalize(Position));
+        //Velocity0 = newVelocity += SampleVelocity(normalize(Position));
 
         Position0 = Position + (newVelocity*DeltaTime);
 

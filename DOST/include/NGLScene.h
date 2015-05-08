@@ -202,6 +202,7 @@ private:
     void createDataPoints();
     void timerEvent(QTimerEvent *);
 
+    void create3DNoiseTexture();
 
     void initTransform();
     void initDrawShader();
@@ -215,6 +216,8 @@ private:
     GLuint m_buffer2;
 
     QTime m_updateTimer;
+
+    GLuint m_noiseTexture;
 
 
 };

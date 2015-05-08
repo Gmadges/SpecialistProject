@@ -59,7 +59,7 @@ DEFINES +=NGL_DEBUG
 
 unix:LIBS += -L/usr/local/lib
 # add the ngl lib
-unix:LIBS +=  -L/$(HOME)/NGL/lib -l NGL
+unix:LIBS +=  -L/$(HOME)/NGL/lib -l NGL -lnoise
 
 # now if we are under unix and not on a Mac (i.e. linux)
 linux-*{
